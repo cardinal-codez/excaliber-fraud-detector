@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output (optional - some include this)
+# build/
+
+# Logs
+fraud-log.txt
+
+# Mac files
+.DS_Store
+
+# Environment files
+.env
+.env.local
+
+# Editor files
+.vscode/
+.idea/
+
+# npm debug logs
+npm-debug.log*

@@ -1,96 +1,108 @@
 ========================================
-2026-05-18 12:53:11 - Order #37
+2026-05-25 17:27:32 - Order #45
 ========================================
-RISK SCORE:  20/100
-RISK LEVEL:  LOW
-DECISION:    ALLOW
+🤖 AI SCORING (OpenAI):
+   Score:    85/100
+   Level:    HIGH
+   Decision: BLOCK
+   Reason:   The order has a high total value and displays address mismatch, suspicious email, and lacks a phone number, indicating a high potential for fraud.
+   Source:   openai
 ----------------------------------------
-REASONS:
-  • New customer (+10)
-  • No phone number provided (+10)
+📋 RULE SCORING (Backup):
+   Score:    /100
+   Level:    
+   Decision: 
 ----------------------------------------
-SIGNALS:
+📊 SIGNALS:
 {
-    "order_id": 37,
-    "order_total": "12.00",
-    "payment_method": "cod",
-    "date_created": "2026-05-18 12:51:46",
-    "customer_email": "egular@gmail.com",
+    "order_id": 45,
+    "order_total": "1205.00",
+    "payment_method": "bacs",
+    "date_created": "2026-05-25 17:26:43",
+    "customer_email": "xhj29kdmsomething@tempmail.com",
     "customer_ip": "::1",
     "is_guest": false,
-    "is_new_customer": true,
-    "previous_order_count": 1,
-    "billing_country": "US",
-    "billing_phone": "",
-    "shipping_country": "US",
-    "address_mismatch": false,
-    "is_odd_hours": false,
-    "is_high_value": false,
-    "has_phone": false,
-    "suspicious_email": false
-}
-
-========================================
-2026-05-18 12:54:36 - Order #38
-========================================
-RISK SCORE:  50/100
-RISK LEVEL:  MEDIUM
-DECISION:    REVIEW
-----------------------------------------
-REASONS:
-  • Billing and shipping country mismatch (+30)
-  • New customer (+10)
-  • No phone number provided (+10)
-----------------------------------------
-SIGNALS:
-{
-    "order_id": 38,
-    "order_total": "17.00",
-    "payment_method": "cod",
-    "date_created": "2026-05-18 12:53:45",
-    "customer_email": "someone@gmail.com",
-    "customer_ip": "::1",
-    "is_guest": false,
-    "is_new_customer": true,
-    "previous_order_count": 1,
+    "is_new_customer": false,
+    "previous_order_count": 5,
     "billing_country": "US",
     "billing_phone": "",
     "shipping_country": "GB",
     "address_mismatch": true,
     "is_odd_hours": false,
-    "is_high_value": false,
+    "is_high_value": true,
     "has_phone": false,
-    "suspicious_email": false
+    "suspicious_email": true
 }
 
 ========================================
-2026-05-18 12:56:01 - Order #39
+2026-05-25 17:28:15 - Order #46
 ========================================
-RISK SCORE:  80/100
-RISK LEVEL:  HIGH
-DECISION:    BLOCK
+🤖 AI SCORING (OpenAI):
+   Score:    80/100
+   Level:    HIGH
+   Decision: BLOCK
+   Reason:   The order is flagged due to a suspicious email address, indicating potential fraudulent activity.
+   Source:   openai
 ----------------------------------------
-REASONS:
-  • Billing and shipping country mismatch (+30)
-  • New customer (+10)
-  • High value order over $500 (+20)
-  • Suspicious email pattern (+10)
-  • No phone number provided (+10)
+📋 RULE SCORING (Backup):
+   Score:    /100
+   Level:    
+   Decision: 
 ----------------------------------------
-SIGNALS:
+📊 SIGNALS:
 {
-    "order_id": 39,
-    "order_total": "880.00",
-    "payment_method": "cod",
-    "date_created": "2026-05-18 12:55:37",
+    "order_id": 46,
+    "order_total": "17.00",
+    "payment_method": "bacs",
+    "date_created": "2026-05-25 17:28:06",
     "customer_email": "xhj29kdmsomething@tempmail.com",
     "customer_ip": "::1",
     "is_guest": false,
-    "is_new_customer": true,
-    "previous_order_count": 1,
-    "billing_country": "US",
+    "is_new_customer": false,
+    "previous_order_count": 6,
+    "billing_country": "GB",
     "billing_phone": "",
     "shipping_country": "GB",
+    "address_mismatch": false,
+    "is_odd_hours": false,
+    "is_high_value": false,
+    "has_phone": false,
+    "suspicious_email": true
+}
+
+========================================
+2026-05-27 08:56:19 - Order #47
+========================================
+🤖 AI SCORING (OpenAI):
+   Score:    85/100
+   Level:    HIGH
+   Decision: BLOCK
+   Reason:   The order has a significant address mismatch, a suspicious email, and is a high-value order being paid via cash on delivery, which increases the likelihood of fraud.
+   Source:   openai
+----------------------------------------
+📋 RULE SCORING (Backup):
+   Score:    70/100
+   Level:    HIGH
+   Decision: BLOCK
+   • Billing and shipping country mismatch (+30)
+   • High value order over $500 (+20)
+   • Suspicious email pattern (+10)
+   • No phone number provided (+10)
+----------------------------------------
+📊 SIGNALS:
+{
+    "order_id": 47,
+    "order_total": "774.00",
+    "payment_method": "cod",
+    "date_created": "2026-05-27 08:55:20",
+    "customer_email": "xhj29kdmsomething@tempmail.com",
+    "customer_ip": "::1",
+    "is_guest": false,
+    "is_new_customer": false,
+    "previous_order_count": 7,
+    "billing_country": "GB",
+    "billing_phone": "",
+    "shipping_country": "US",
     "address_mismatch": true,
     "is_odd_hours": false,
     "is_high_value": true,
