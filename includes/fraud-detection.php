@@ -50,6 +50,7 @@ function aifd_get_signal_weights() {
         'freight_forwarder'      => 0.20,
 
         // Tier 2 — Strong
+        'chargeback_history'     => 0.22,
         'first_order_high_value' => 0.15,
         'ip_proxy_vpn'           => 0.12,
         'risky_country_combo'    => 0.12,
@@ -120,6 +121,7 @@ function aifd_extract_signals( $order ) {
     $high_velocity        = ( count( $previous_orders ) >= 3 );
     $new_account          = aifd_is_new_account( $customer_id );
     $multiple_addresses   = aifd_has_multiple_addresses( $customer_email );
+    $chargeback_history   = aifd_has_chargeback_history( $customer_email, $customer_ip );
 
     return array(
         // Order info
@@ -141,6 +143,7 @@ function aifd_extract_signals( $order ) {
         'freight_forwarder'      => $freight_forwarder,
 
         // Tier 2 — Strong
+        'chargeback_history'     => $chargeback_history,
         'first_order_high_value' => ( $is_new_customer && $is_high_value ),
         'ip_proxy_vpn'           => false, // future: IP lookup API
         'risky_country_combo'    => $risky_country_combo,
@@ -208,6 +211,53 @@ function aifd_is_risky_country_combo( $billing, $shipping ) {
         if ( in_array( $billing, $combo ) && in_array( $shipping, $combo ) ) {
             return true;
         }
+    }
+
+    return false;
+
+}
+
+/**
+ * Check if customer has chargeback history
+ */
+function aifd_has_chargeback_history( $email, $ip ) {
+
+    $previous_orders = wc_get_orders( array(
+        'billing_email' => $email,
+        'limit'         => 20,
+        'status'        => array( 'refunded', 'cancelled', 'failed' ),
+        'return'        => 'objects',
+    ));
+
+    if ( empty( $previous_orders ) ) {
+        return false;
+    }
+
+    foreach ( $previous_orders as $order ) {
+
+        // Check if previously blocked by our plugin
+        $previous_decision = $order->get_meta( '_aifd_decision' );
+        if ( $previous_decision === 'BLOCK' ) {
+            return true;
+        }
+
+        // Check order notes for chargeback keywords
+        $notes = wc_get_order_notes( array(
+            'order_id' => $order->get_id(),
+            'type'     => 'internal',
+        ));
+
+        foreach ( $notes as $note ) {
+            $note_lower = strtolower( $note->content );
+            if (
+                strpos( $note_lower, 'chargeback' ) !== false ||
+                strpos( $note_lower, 'dispute' )    !== false ||
+                strpos( $note_lower, 'fraud' )      !== false
+            ) {
+                return true;
+            }
+        }
+
     }
 
     return false;
@@ -346,6 +396,7 @@ function aifd_calculate_risk_score( $signals ) {
         'high_velocity'          => 'High order velocity from same customer',
         'address_mismatch'       => 'Billing and shipping country mismatch',
         'freight_forwarder'      => 'Shipping to freight forwarder address',
+        'chargeback_history'     => 'Customer has previous chargeback history',
         'first_order_high_value' => 'High value first order from new customer',
         'ip_proxy_vpn'           => 'Order placed via VPN or proxy',
         'risky_country_combo'    => 'High-risk billing/shipping country combination',
@@ -448,6 +499,7 @@ Order signals:
 - Risky Country Combo: " . ( $signals['risky_country_combo'] ? 'YES' : 'NO' ) . "
 - New Customer: " . ( $signals['is_new_customer'] ? 'YES' : 'NO' ) . "
 - Previous Orders: " . $signals['previous_order_count'] . "
+- Chargeback History: " . ( $signals['chargeback_history'] ? 'YES' : 'NO' ) . "
 - First Order High Value: " . ( $signals['first_order_high_value'] ? 'YES' : 'NO' ) . "
 - Order Total Anomaly: " . ( $signals['order_total_anomaly'] ? 'YES' : 'NO' ) . "
 - Store Average Order Value: $" . round( $signals['store_average'] ?? 0 ) . "
