@@ -5,6 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Register REST API endpoints
 add_action( 'rest_api_init', 'aifd_register_rest_routes' );
+add_action( 'wp_ajax_aifd_load_seeds', 'aifd_ajax_load_seeds' );
 
 function aifd_register_rest_routes() {
 
@@ -28,6 +29,29 @@ function aifd_register_rest_routes() {
         'callback'            => 'aifd_order_action',
         'permission_callback' => 'aifd_check_permission'
     ));
+
+}
+
+function aifd_ajax_load_seeds() {
+
+    // Verify nonce
+    if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'aifd_settings_nonce' ) ) {
+        wp_send_json_error( array( 'message' => 'Security check failed' ) );
+    }
+
+    // Check permissions
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => 'Permission denied' ) );
+    }
+
+    $loader = new AIFD_Seed_Loader();
+    $result = $loader->load_seeds();
+
+    if ( $result['success'] ) {
+        wp_send_json_success( $result );
+    } else {
+        wp_send_json_error( $result );
+    }
 
 }
 
@@ -57,8 +81,6 @@ function aifd_get_flagged_orders() {
         'orderby' => 'date',
         'order'   => 'DESC',
     ));
-
-    write_log($orders); // Debugging line to check the retrieved orders
 
     $data = array();
 

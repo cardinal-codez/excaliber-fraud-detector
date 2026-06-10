@@ -23,6 +23,9 @@ add_action( 'admin_notices', function() {
     </div>';
 });
 
+// add_action('admin_enqueue_scripts', function($hook) {
+//     error_log('Current hook: ' . $hook);
+// });
 
 
 require_once AIFD_PATH . 'includes/providers/class-provider-base.php';
@@ -36,3 +39,5 @@ require_once plugin_dir_path(__FILE__) . 'includes/rest-api.php';
 require_once plugin_dir_path(__FILE__) . 'includes/fraud-detection.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin-menu.php';
 require_once AIFD_PATH . 'includes/settings-page.php';
+require_once AIFD_PATH . 'includes/class-pinecone.php';
+require_once AIFD_PATH . 'includes/class-seed-loader.php';

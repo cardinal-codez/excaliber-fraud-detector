@@ -448,5 +448,140 @@
     "times_seen": 234,
     "source": "seed_dataset",
     "description": "High confidence repeat fraud — chargeback history combined with reshipping and untraceable payment"
+  },
+  {
+    "id": "legit_001",
+    "pattern": "registered_customer same_billing_shipping verified_email phone_provided normal_hours low_value",
+    "fraud_type": "legitimate",
+    "confidence": 0.98,
+    "times_seen": 45000,
+    "source": "seed_dataset",
+    "description": "Standard legitimate order — returning registered customer, matching addresses, verified email, phone provided, normal business hours"
+  },
+  {
+    "id": "legit_002",
+    "pattern": "returning_customer multiple_previous_orders same_address verified_email phone_provided",
+    "fraud_type": "legitimate",
+    "confidence": 0.99,
+    "times_seen": 38000,
+    "source": "seed_dataset",
+    "description": "High trust returning customer — 5+ previous orders, consistent address, verified contact details"
+  },
+  {
+    "id": "legit_003",
+    "pattern": "registered_customer same_billing_shipping work_email phone_provided normal_hours medium_value",
+    "fraud_type": "legitimate",
+    "confidence": 0.97,
+    "times_seen": 29000,
+    "source": "seed_dataset",
+    "description": "Business customer — work email domain, registered account, matching addresses, medium value order"
+  },
+  {
+    "id": "legit_004",
+    "pattern": "registered_customer gift_shipping_different phone_provided verified_email low_value normal_hours",
+    "fraud_type": "legitimate",
+    "confidence": 0.94,
+    "times_seen": 12000,
+    "source": "seed_dataset",
+    "description": "Legitimate gift order — different shipping address but registered customer with phone, verified email, low value"
+  },
+  {
+    "id": "legit_005",
+    "pattern": "new_customer same_billing_shipping verified_email phone_provided normal_hours low_value card_payment",
+    "fraud_type": "legitimate",
+    "confidence": 0.91,
+    "times_seen": 18000,
+    "source": "seed_dataset",
+    "description": "Legitimate new customer — first order but all signals clean, low value, card payment, matching addresses"
+  },
+  {
+    "id": "legit_006",
+    "pattern": "returning_customer address_change phone_provided verified_email normal_hours low_value",
+    "fraud_type": "legitimate",
+    "confidence": 0.93,
+    "times_seen": 8500,
+    "source": "seed_dataset",
+    "description": "Returning customer who moved — new address but long history, phone provided, verified email"
+  },
+  {
+    "id": "legit_007",
+    "pattern": "registered_customer same_billing_shipping verified_email phone_provided odd_hours low_value",
+    "fraud_type": "legitimate",
+    "confidence": 0.90,
+    "times_seen": 7200,
+    "source": "seed_dataset",
+    "description": "Legitimate late night order — registered customer with history placing small order at night, all other signals clean"
+  },
+  {
+    "id": "legit_008",
+    "pattern": "registered_customer same_billing_shipping verified_email phone_provided normal_hours high_value multiple_previous_orders",
+    "fraud_type": "legitimate",
+    "confidence": 0.96,
+    "times_seen": 4500,
+    "source": "seed_dataset",
+    "description": "High value legitimate order — returning customer with strong history, high value but consistent with purchase pattern"
+  },
+  {
+    "id": "legit_009",
+    "pattern": "new_customer same_billing_shipping verified_email phone_provided normal_hours medium_value card_payment local_country",
+    "fraud_type": "legitimate",
+    "confidence": 0.89,
+    "times_seen": 22000,
+    "source": "seed_dataset",
+    "description": "Legitimate new customer domestic order — local country, matching addresses, all contact details provided"
+  },
+  {
+    "id": "legit_010",
+    "pattern": "registered_customer international_shipping verified_email phone_provided normal_hours low_value multiple_previous_orders",
+    "fraud_type": "legitimate",
+    "confidence": 0.92,
+    "times_seen": 6800,
+    "source": "seed_dataset",
+    "description": "Legitimate international order — returning customer shipping abroad, low value, verified contact, strong purchase history"
+  },
+  {
+    "id": "legit_011",
+    "pattern": "registered_customer same_billing_shipping corporate_email phone_provided normal_hours high_value purchase_order",
+    "fraud_type": "legitimate",
+    "confidence": 0.97,
+    "times_seen": 3200,
+    "source": "seed_dataset",
+    "description": "Legitimate corporate bulk order — corporate email domain, registered account, high value consistent with B2B purchasing"
+  },
+  {
+    "id": "legit_012",
+    "pattern": "returning_customer multiple_previous_orders card_payment same_billing_shipping phone_provided normal_hours",
+    "fraud_type": "legitimate",
+    "confidence": 0.98,
+    "times_seen": 31000,
+    "source": "seed_dataset",
+    "description": "Standard repeat customer — consistent card payment, same address always, phone on file, normal hours"
+  },
+  {
+    "id": "legit_013",
+    "pattern": "new_customer same_billing_shipping verified_email phone_provided paypal_payment normal_hours low_value",
+    "fraud_type": "legitimate",
+    "confidence": 0.92,
+    "times_seen": 15000,
+    "source": "seed_dataset",
+    "description": "Legitimate PayPal new customer — PayPal provides buyer verification, matching addresses, low value first order"
+  },
+  {
+    "id": "legit_014",
+    "pattern": "registered_customer gift_registry_shipping verified_email phone_provided normal_hours medium_value",
+    "fraud_type": "legitimate",
+    "confidence": 0.93,
+    "times_seen": 5400,
+    "source": "seed_dataset",
+    "description": "Gift registry order — registered customer sending to registry address, normal value, all contact details present"
+  },
+  {
+    "id": "legit_015",
+    "pattern": "returning_customer subscription_renewal same_billing_shipping verified_email phone_provided",
+    "fraud_type": "legitimate",
+    "confidence": 0.99,
+    "times_seen": 28000,
+    "source": "seed_dataset",
+    "description": "Subscription renewal — recurring customer, consistent details, automatic renewal pattern, highest trust signal"
   }
 ]

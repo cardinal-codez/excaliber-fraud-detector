@@ -18,6 +18,23 @@ function aifd_register_settings_page() {
     );
 }
 
+add_action( 'admin_enqueue_scripts', 'aifd_enqueue_settings_script' );
+
+function aifd_enqueue_settings_script( $hook ) {
+
+    if ( $hook !== 'fraud-detector_page_ai-fraud-detector-settings' ) return;
+
+    // Pass nonce to settings page JavaScript
+    wp_add_inline_script(
+        'jquery',
+        'var aifd_settings = ' . json_encode( array(
+            'nonce'   => wp_create_nonce( 'aifd_settings_nonce' ),
+            'ajaxurl' => admin_url( 'admin-ajax.php' ),
+        )) . ';'
+    );
+
+}
+
 // ══════════════════════════════════════════════
 // REGISTER SETTINGS
 // ══════════════════════════════════════════════
@@ -80,6 +97,20 @@ function aifd_register_settings() {
     register_setting( 'aifd_settings', 'aifd_review_threshold', array(
         'sanitize_callback' => 'absint',
         'default'           => 40
+    ));
+
+    // Pinecone settings
+    register_setting( 'aifd_settings', 'aifd_pinecone_key', array(
+        'sanitize_callback' => 'sanitize_text_field',
+        'default'           => ''
+    ));
+    register_setting( 'aifd_settings', 'aifd_pinecone_host', array(
+        'sanitize_callback' => 'esc_url_raw',
+        'default'           => ''
+    ));
+    register_setting( 'aifd_settings', 'aifd_pinecone_index', array(
+        'sanitize_callback' => 'sanitize_text_field',
+        'default'           => 'fraud-patterns'
     ));
 
 }
@@ -203,6 +234,87 @@ function aifd_render_settings_page() {
                     </td>
                 </tr>
             </table>
+
+            <h2>Pinecone Settings</h2>
+        <table class="form-table">
+            <tr>
+                <th scope="row">API Key</th>
+                <td>
+                    <input type="password"
+                        name="aifd_pinecone_key"
+                        value="<?php echo esc_attr( get_option('aifd_pinecone_key') ); ?>"
+                        class="regular-text"
+                        placeholder="pc-xxxxxxxxxxxxxxxx">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Index Host URL</th>
+                <td>
+                    <input type="url"
+                        name="aifd_pinecone_host"
+                        value="<?php echo esc_attr( get_option('aifd_pinecone_host') ); ?>"
+                        class="regular-text"
+                        placeholder="https://fraud-patterns-xxx.svc.xxx.pinecone.io">
+                    <p class="description">Found in your Pinecone dashboard under the index details.</p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Index Name</th>
+                <td>
+                    <input type="text"
+                        name="aifd_pinecone_index"
+                        value="<?php echo esc_attr( get_option('aifd_pinecone_index', 'fraud-patterns') ); ?>"
+                        class="regular-text">
+                </td>
+            </tr>
+        </table>
+
+        <!-- Load Seeds Button -->
+        <h2>Seed Patterns</h2>
+        <table class="form-table">
+            <tr>
+                <th scope="row">Load Seed Patterns</th>
+                <td>
+                    <button type="button" id="aifd-load-seeds" class="button button-secondary">
+                        Load 65 Seed Patterns into Pinecone
+                    </button>
+                    <span id="aifd-seed-status" style="margin-left:10px;"></span>
+                    <p class="description">
+                        Loads 50 fraud patterns + 15 legitimate patterns into Pinecone.
+                        Only needs to be done once.
+                    </p>
+                </td>
+            </tr>
+        </table>
+
+        <script>
+        document.getElementById('aifd-load-seeds').addEventListener('click', function() {
+            const btn    = this;
+            const status = document.getElementById('aifd-seed-status');
+
+            btn.disabled    = true;
+            status.innerHTML = '⏳ Loading patterns...';
+
+            fetch(aifd_settings.ajaxurl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=aifd_load_seeds&nonce=' + aifd_settings.nonce
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    status.innerHTML = '✅ ' + data.data.message;
+                } else {
+                    status.innerHTML = '❌ ' + data.data.message;
+                }
+                btn.disabled = false;
+            })
+            .catch(() => {
+                status.innerHTML = '❌ Request failed';
+                btn.disabled = false;
+            });
+        });
+        </script>
 
             <?php submit_button(); ?>
         </form>
