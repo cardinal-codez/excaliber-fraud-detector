@@ -140,3 +140,54 @@ function aifd_order_action( $request ) {
     ));
 
 }
+
+// Migrate patterns to new provider
+add_action( 'wp_ajax_aifd_migrate_patterns', 'aifd_ajax_migrate_patterns' );
+
+function aifd_ajax_migrate_patterns() {
+
+    if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'aifd_settings_nonce' ) ) {
+        wp_send_json_error( array( 'message' => 'Security check failed' ) );
+    }
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => 'Permission denied' ) );
+    }
+
+    $from = sanitize_text_field( $_POST['from'] ?? '' );
+    $to   = sanitize_text_field( $_POST['to']   ?? '' );
+
+    if ( empty( $from ) || empty( $to ) ) {
+        wp_send_json_error( array( 'message' => 'Missing provider information' ) );
+    }
+
+    $result = aifd_migrate_namespace( $from, $to );
+
+    if ( $result['success'] ) {
+        // Mark switch as handled
+        update_option( 'aifd_provider_switched', array( 'handled' => true ) );
+        wp_send_json_success( $result );
+    } else {
+        wp_send_json_error( $result );
+    }
+
+}
+
+// Dismiss migration warning
+add_action( 'wp_ajax_aifd_dismiss_migration', 'aifd_ajax_dismiss_migration' );
+
+function aifd_ajax_dismiss_migration() {
+
+    if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'aifd_settings_nonce' ) ) {
+        wp_send_json_error( array( 'message' => 'Security check failed' ) );
+    }
+
+    update_option( 'aifd_provider_switched', array( 'handled' => true ) );
+
+    // Load fresh seeds for new provider
+    $loader = new AIFD_Seed_Loader();
+    $loader->load_seeds();
+
+    wp_send_json_success( array( 'message' => 'Starting fresh with new provider' ) );
+
+}

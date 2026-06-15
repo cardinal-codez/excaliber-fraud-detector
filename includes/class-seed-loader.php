@@ -19,16 +19,16 @@ class AIFD_Seed_Loader {
         if ( ! $this->pinecone->is_configured() ) {
             return array(
                 'success' => false,
-                'message' => 'Pinecone not configured — add API key and host URL first'
+                'message' => 'Pinecone not configured'
             );
         }
 
-        if ( empty( $this->openai_key ) ) {
-            return array(
-                'success' => false,
-                'message' => 'OpenAI API key not configured — needed for embeddings'
-            );
-        }
+        // if ( empty( $this->openai_key ) ) {
+        //     return array(
+        //         'success' => false,
+        //         'message' => 'OpenAI API key not configured — needed for embeddings'
+        //     );
+        // }
 
         // Load seed patterns from JSON file
         $seed_file = AIFD_PATH . 'data/seed-patterns.json';
@@ -49,6 +49,11 @@ class AIFD_Seed_Loader {
             );
         }
 
+        $embeddings = new AIFD_Embeddings();
+        $namespace  = $embeddings->get_namespace();
+        $provider   = get_option( 'aifd_ai_provider', 'openai' );
+
+
         $loaded  = 0;
         $failed  = 0;
         $skipped = 0;
@@ -56,7 +61,7 @@ class AIFD_Seed_Loader {
         foreach ( $patterns as $pattern ) {
 
             // Embed the pattern text
-            $embedding = $this->embed( $pattern['pattern'] );
+            $embedding = $this->embed( $pattern['pattern'], $provider );
 
             if ( ! $embedding ) {
                 $failed++;
@@ -74,7 +79,9 @@ class AIFD_Seed_Loader {
                     'times_seen'  => $pattern['times_seen'],
                     'source'      => $pattern['source'],
                     'description' => $pattern['description'],
-                )
+                    'provider'    => $provider,
+                ),
+                $namespace
             );
 
             if ( $success ) {
@@ -92,39 +99,15 @@ class AIFD_Seed_Loader {
 
         return array(
             'success' => true,
-            'message' => "Loaded {$loaded}/{$total} patterns successfully. Failed: {$failed}",
+            'message' => "Loaded {$loaded}/{$total} patterns in namespace: {$namespace}. Failed: {$failed}",
             'loaded'  => $loaded,
             'failed'  => $failed,
             'total'   => $total,
+            'namespace' => $namespace,
+            'provider'  => $provider,
         );
 
     }
 
-    /**
-     * Embed text using OpenAI text-embedding-3-small
-     */
-    public function embed( $text ) {
-
-        $response = wp_remote_post( 'https://api.openai.com/v1/embeddings', array(
-            'timeout' => 30,
-            'headers' => array(
-                'Authorization' => 'Bearer ' . $this->openai_key,
-                'Content-Type'  => 'application/json',
-            ),
-            'body' => json_encode( array(
-                'input' => $text,
-                'model' => 'text-embedding-3-small',
-            )),
-        ));
-
-        if ( is_wp_error( $response ) ) {
-            return false;
-        }
-
-        $data = json_decode( wp_remote_retrieve_body( $response ), true );
-
-        return $data['data'][0]['embedding'] ?? false;
-
-    }
 
 }

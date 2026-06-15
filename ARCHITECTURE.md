@@ -1,7 +1,7 @@
 # AI Fraud Detector — Architecture Document
 
-> Version: 2.0.0
-> Last updated: May 2026
+> Version: 3.0.0
+> Last updated: June 2026
 > Status: Active development
 
 ---
@@ -10,7 +10,7 @@
 
 AI Fraud Detector is a production-grade WordPress plugin that uses AI function calling, Pinecone vector search, and per-merchant learning to detect and prevent ecommerce fraud in real time.
 
-The plugin supports multiple AI providers — OpenAI, Anthropic, Google Gemini, and Ollama (local) — giving merchants full flexibility over their AI infrastructure.
+The plugin supports multiple AI providers — OpenAI, Anthropic, Google Gemini, and Ollama (local) — with provider-native embeddings and namespaced Pinecone indexes for full provider independence.
 
 ---
 
@@ -19,17 +19,17 @@ The plugin supports multiple AI providers — OpenAI, Anthropic, Google Gemini, 
 ```
 New Order Placed
       ↓
-Extract 16 weighted signals
+Extract 17 weighted signals
       ↓
-Calculate preliminary weighted score
+Build behavior pattern text from active signals
       ↓
-Embed behavior pattern (OpenAI text-embedding-3-small)
+Embed using provider-native embedding model
       ↓
-Search Pinecone for similar confirmed patterns
+Search Pinecone in merchant+provider namespace
       ↓
 AI Provider Agent (function calling):
   ├── check_signal_weights(signals, merchant_weights)
-  ├── search_fraud_patterns(embedding)
+  ├── search_fraud_patterns(pinecone_context)
   ├── check_velocity(email, ip)
   └── calculate_final_risk(all_results)
       ↓
@@ -39,7 +39,7 @@ REVIEW/BLOCK → merchant dashboard (React)
       ↓
 Merchant: Confirm Fraud OR Override
       ↓
-Confirm → embed pattern → store in Pinecone ✅
+Confirm → embed pattern → store in Pinecone namespace ✅
 Override → record false positive
         → reduce signal weights for this merchant ✅
       ↓
@@ -55,133 +55,218 @@ System learns per merchant over time 🧠
 The plugin uses the Strategy Pattern to decouple fraud detection logic from the AI provider. Merchants choose their preferred provider from the settings page.
 
 ```php
-// Provider abstraction layer
 $provider = get_option('aifd_ai_provider', 'openai');
-$result   = aifd_call_provider($provider, $prompt, $tools);
-
-// Routes internally to:
-switch ($provider) {
-    case 'openai':    return aifd_call_openai($prompt, $tools);
-    case 'anthropic': return aifd_call_anthropic($prompt, $tools);
-    case 'gemini':    return aifd_call_gemini($prompt, $tools);
-    case 'ollama':    return aifd_call_ollama($prompt);
-}
+$result   = aifd_call_provider($signals);
+// Routes internally to correct provider class
 ```
 
 ### Supported Providers
 
-| Provider | Model | Function Calling | Cost | Privacy |
-|----------|-------|-----------------|------|---------|
-| OpenAI | gpt-4o-mini | Full support | Low | Cloud |
-| Anthropic | claude-haiku-4-5-20251001 | Full (tool use) | Low | Cloud |
-| Google Gemini | gemini-1.5-flash | Full support | Very low | Cloud |
-| Ollama | llama3, mistral etc | Prompt fallback | Free | Local |
+| Provider | Scoring Model | Embedding Model | Dimensions | Keys Needed |
+|----------|--------------|-----------------|------------|-------------|
+| OpenAI | gpt-4o-mini | text-embedding-3-small | 1536 | OpenAI only |
+| Anthropic | claude-haiku-4-5-20251001 | voyage-3 (Voyage AI) | 1024 | Anthropic + Voyage ⚠️ |
+| Google Gemini | gemini-1.5-flash | text-embedding-004 | 768 | Gemini only |
+| Ollama | llama3 / any | nomic-embed-text | 768 | None (free, local) |
 
 ### Provider File Structure
 
 ```
 includes/
-├── providers/
-│   ├── class-provider-base.php      ← shared interface
-│   ├── class-provider-openai.php    ← OpenAI implementation
-│   ├── class-provider-anthropic.php ← Anthropic implementation
-│   ├── class-provider-gemini.php    ← Google Gemini implementation
-│   └── class-provider-ollama.php    ← Local Ollama implementation
+├── class-embeddings.php         ← embedding abstraction layer
+├── class-pinecone.php           ← Pinecone integration
+├── class-seed-loader.php        ← seed pattern loader
+└── providers/
+    ├── class-provider-base.php
+    ├── class-provider-openai.php
+    ├── class-provider-anthropic.php
+    ├── class-provider-gemini.php
+    └── class-provider-ollama.php
 ```
 
-### Provider Implementations
+## Provider Switching Strategy
+
+When a merchant switches AI providers:
+
+1. System detects the change via updated_option hook
+2. Admin notice warns merchant about namespace isolation
+3. Two options presented:
+
+   Re-embed patterns:
+   → All seed patterns re-embedded with new provider model
+   → All confirmed merchant patterns re-embedded
+   → Stored in new namespace (e.g. 1_gemini)
+   → Old namespace preserved as backup
+   → Migration takes 1-2 minutes
+
+   Start fresh:
+   → New namespace created
+   → 65 seed patterns loaded fresh
+   → Confirmed patterns NOT migrated
+   → Merchant starts learning again
+
+## Ollama Production Warning
+
+Ollama is listed as a provider option but is only suitable for:
+- Local development environments
+- Self-hosted VPS with 8GB+ RAM
+- Dedicated servers with full environment control
+
+Ollama is NOT compatible with shared hosting environments
+(Cloudways, SiteGround, Bluehost, WP Engine, Kinsta etc).
+
+A clear warning is shown in the settings page when Ollama is selected.
+
+---
+
+## Embedding Abstraction Layer
+
+### The Problem This Solves
+
+All 65 seed patterns must be embedded with the same model they will be searched with. Mixing embedding models breaks vector similarity search completely.
+
+```
+WRONG ❌
+Seeds embedded with OpenAI text-embedding-3-small
+Search query embedded with Gemini text-embedding-004
+→ Different vector spaces
+→ Similarity scores are meaningless
+→ System returns garbage results
+
+CORRECT ✅
+Seeds embedded with provider's own model
+Search query embedded with same model
+→ Same vector space
+→ Similarity scores are accurate
+→ System finds real fraud pattern matches
+```
+
+### Embedding Model Map
 
 ```php
-// OpenAI
-function aifd_call_openai($prompt, $tools) {
-    // POST https://api.openai.com/v1/chat/completions
-    // model: gpt-4o-mini
-    // supports: full function calling via "tools"
-}
-
-// Anthropic (Claude)
-function aifd_call_anthropic($prompt, $tools) {
-    // POST https://api.anthropic.com/v1/messages
-    // model: claude-haiku-4-5-20251001
-    // supports: full tool use (same concept, different syntax)
-}
-
-// Google Gemini
-function aifd_call_gemini($prompt, $tools) {
-    // POST https://generativelanguage.googleapis.com/v1beta/models
-    // model: gemini-1.5-flash
-    // supports: function_declarations
-}
-
-// Ollama (local — FREE, no data leaves server)
-function aifd_call_ollama($prompt) {
-    // POST http://localhost:11434/api/chat
-    // model: merchant configures (llama3, mistral, qwen etc)
-    // no function calling — uses structured prompt fallback
-    // no API key needed
-    // complete privacy — all inference on merchant server
-}
+private $models = array(
+    'openai'    => array(
+        'model'     => 'text-embedding-3-small',
+        'dimension' => 1536,
+    ),
+    'anthropic' => array(
+        'model'     => 'voyage-3',        // Voyage AI — separate key needed
+        'dimension' => 1024,
+    ),
+    'gemini'    => array(
+        'model'     => 'text-embedding-004',
+        'dimension' => 768,
+    ),
+    'ollama'    => array(
+        'model'     => 'nomic-embed-text', // free, runs locally
+        'dimension' => 768,
+    ),
+);
 ```
 
-### Function Calling — Provider Differences
+### Anthropic Special Case
 
-```
-OpenAI    → "tools" parameter
-Anthropic → "tools" parameter (identical concept)
-Gemini    → "function_declarations" parameter
-Ollama    → prompt-based JSON extraction (fallback)
-```
+Anthropic does not provide native embedding models. Voyage AI (voyageai.com) is Anthropic's recommended embedding partner.
 
-All three cloud providers support function calling natively. Ollama uses a structured prompt that forces JSON output as a fallback.
+Anthropic merchants need two API keys:
+- Anthropic API key (for Claude scoring)
+- Voyage AI API key (for embeddings)
+
+Fallback: If no Voyage key provided, falls back to OpenAI embeddings with a warning.
 
 ---
 
-## AI Function Calling — Tool Definitions
+## Pinecone Namespaced Architecture
 
-The AI agent autonomously decides which tools to call and in what order:
+### Why Namespaces
 
-```javascript
-tools: [
-  {
-    name: "check_signal_weights",
-    description: "Evaluate weighted fraud signals for this order using merchant-specific weights",
-    parameters: {
-      signals: "object — 16 fraud signals extracted from order",
-      merchant_weights: "object — personalized weights for this merchant"
-    }
+Each merchant + provider combination gets its own Pinecone namespace. This means:
+
+- Merchant A using OpenAI never pollutes Merchant B using Gemini
+- Switching providers gets a fresh namespace with correct dimensions
+- False positive overrides only affect the merchant who reported them
+- Confirmed fraud patterns are merchant-specific, not global
+
+### Namespace Convention
+
+```
+{merchant_id}_{provider}
+
+Examples:
+1_openai     → merchant ID 1, using OpenAI
+1_gemini     → merchant ID 1, using Gemini
+2_openai     → merchant ID 2, using OpenAI
+2_anthropic  → merchant ID 2, using Anthropic
+```
+
+### Pinecone Index Structure
+
+Three separate indexes — one per dimension size:
+
+| Index Name | Dimensions | Used By |
+|-----------|------------|---------|
+| fraud-patterns-1536 | 1536 | OpenAI |
+| fraud-patterns-1024 | 1024 | Anthropic (Voyage) |
+| fraud-patterns-768 | 768 | Gemini + Ollama |
+
+### Seed Loading Process
+
+At install (or manual trigger from settings):
+
+```
+Merchant clicks "Load Seed Patterns"
+        ↓
+Detect merchant's chosen provider
+        ↓
+Embed all 65 seeds using THAT provider's embedding model
+        ↓
+Store in merchant's namespace (e.g. 1_openai)
+        ↓
+One time cost — never repeated unless provider changes
+        ↓
+Seeds available for similarity search immediately
+```
+
+### What We Store in Pinecone
+
+We never store raw order data. We store behavior pattern embeddings.
+
+```json
+{
+  "id": "seed_001",
+  "values": [0.123, 0.456, ...],
+  "metadata": {
+    "pattern":     "disposable_email address_mismatch high_value no_phone",
+    "fraud_type":  "card_fraud",
+    "confidence":  0.97,
+    "times_seen":  1250,
+    "source":      "seed_dataset",
+    "description": "Classic stolen card pattern",
+    "provider":    "openai"
   },
-  {
-    name: "search_fraud_patterns",
-    description: "Search Pinecone vector store for similar confirmed fraud patterns",
-    parameters: {
-      embedding: "array — behavior pattern embedding vector",
-      threshold: "number — similarity threshold (default 0.85)"
-    }
-  },
-  {
-    name: "check_velocity",
-    description: "Check order velocity for email and IP — detect card testing and rapid ordering",
-    parameters: {
-      email: "string — customer email",
-      ip: "string — customer IP address",
-      window_minutes: "number — time window to check (default 60)"
-    }
-  },
-  {
-    name: "calculate_final_risk",
-    description: "Synthesize all signals, patterns, and velocity into final risk score and decision",
-    parameters: {
-      signal_score: "number — weighted signal score",
-      pattern_matches: "array — similar patterns from Pinecone",
-      velocity_score: "number — velocity check result"
-    }
-  }
-]
+  "namespace": "1_openai"
+}
+```
+
+### Pattern Text Construction
+
+We embed a natural language description of active signals, not raw data:
+
+```
+Active signals: disposable_email, address_mismatch, high_value, no_phone
+Payment method: cod
+Countries: US → GB
+
+Pattern text:
+"disposable_email address_mismatch no_phone_number
+ first_order_high_value cod_payment US_to_GB"
+        ↓
+Embedded → 1536d vector (OpenAI) or 768d (Gemini) etc
 ```
 
 ---
 
-## Signal Matrix — 16 Weighted Signals
+## Signal Matrix — 17 Weighted Signals
 
 ### Tier 1 — Critical signals (high weight)
 
@@ -197,13 +282,14 @@ tools: [
 
 | Signal | Weight | Description |
 |--------|--------|-------------|
+| chargeback_history | 0.22 | Previous chargeback or blocked order |
 | first_order_high_value | 0.15 | New customer, order > $500 |
 | ip_proxy_vpn | 0.12 | Order placed via VPN or proxy |
 | risky_country_combo | 0.12 | Known high-fraud billing/shipping pair |
 | mismatched_names | 0.10 | Billing name ≠ shipping name |
 | no_phone_number | 0.10 | No contact number provided |
 
-### Tier 3 — Contextual signals (weak alone, strong combined)
+### Tier 3 — Contextual signals
 
 | Signal | Weight | Description |
 |--------|--------|-------------|
@@ -217,10 +303,10 @@ tools: [
 ### Scoring Formula
 
 ```
-raw_score = sum(signal_weight × signal_present)
-            / sum(all_possible_weights) × 100
-
-score is capped at 100
+raw_score   = sum(signal_weight × signal_present)
+max_possible = sum(all_weights)
+normalized  = (raw_score / max_possible) × 100
+final_score = min(100, normalized)
 ```
 
 ---
@@ -233,57 +319,47 @@ score is capped at 100
 | REVIEW | 40 – 70 | Hold order, notify merchant, await decision |
 | BLOCK | 71 – 100 | Hold order, alert merchant, send email |
 
-REVIEW is the most valuable state — merchants trust a system that flags for review over one that blocks aggressively. False positives cost merchants more than fraud.
+REVIEW is the most valuable state. False positives cost merchants more than fraud. A system that flags for review builds more trust than one that aggressively blocks.
 
 ---
 
-## Pinecone Vector Store
+## AI Function Calling (Day 19)
 
-### What we store
+OpenAI and Anthropic both support function calling natively. The agent autonomously decides which tools to call:
 
-We do NOT store raw order data. We store fraud behavior patterns.
-
-```json
-{
-  "id": "pattern_uuid",
-  "values": [0.123, 0.456, ...],
-  "metadata": {
-    "pattern": "disposable_email address_mismatch high_value no_phone new_customer",
-    "fraud_type": "card_fraud",
-    "confidence": 0.95,
-    "times_seen": 1250,
-    "source": "confirmed",
-    "merchant_id": "global"
+```javascript
+tools: [
+  {
+    name: "check_signal_weights",
+    description: "Evaluate weighted fraud signals using merchant-specific weights",
+    parameters: { signals: object, merchant_weights: object }
+  },
+  {
+    name: "search_fraud_patterns",
+    description: "Search Pinecone for similar confirmed fraud patterns",
+    parameters: { embedding: array, namespace: string, threshold: number }
+  },
+  {
+    name: "check_velocity",
+    description: "Check order velocity for email and IP",
+    parameters: { email: string, ip: string, window_minutes: number }
+  },
+  {
+    name: "calculate_final_risk",
+    description: "Synthesize all inputs into final risk score and decision",
+    parameters: { signal_score: number, pattern_matches: array, velocity_score: number }
   }
-}
+]
 ```
 
-### Embedding strategy
+### Function Calling Support Per Provider
 
-```
-text = signal combination as natural language description
-     = "disposable_email address_mismatch
-        high_value_order no_phone
-        new_customer GB_to_US cod_payment"
-
-vector = openai.embeddings.create(
-    input = text,
-    model = "text-embedding-3-small"
-)
-```
-
-Note: Embeddings always use OpenAI text-embedding-3-small regardless of chosen AI provider. This is intentional — embeddings need consistency across all stored patterns.
-
-### Cold start solution
-
-50 seed patterns pre-loaded at plugin install covering:
-- Card testing fraud (10 patterns)
-- Card fraud (10 patterns)
-- Reshipping fraud (10 patterns)
-- Chargeback fraud (10 patterns)
-- Identity and account fraud (10 patterns)
-
-Seed patterns are stored in `data/seed-patterns.json` and loaded into Pinecone on plugin activation.
+| Provider | Function Calling | Implementation |
+|----------|-----------------|----------------|
+| OpenAI | ✅ Full | "tools" parameter |
+| Anthropic | ✅ Full | "tools" parameter (same concept) |
+| Gemini | ✅ Full | "function_declarations" parameter |
+| Ollama | ⚠️ Model dependent | Structured prompt fallback |
 
 ---
 
@@ -292,96 +368,94 @@ Seed patterns are stored in `data/seed-patterns.json` and loaded into Pinecone o
 ```
 Order blocked or flagged for review
       ↓
-Merchant sees order in React dashboard
+Merchant sees in React dashboard
       ↓
-Two actions available:
+Two actions:
 ├── Confirm Fraud
 │     → embed behavior pattern
-│     → store in Pinecone with confidence 1.0
+│     → store in merchant namespace in Pinecone
+│     → confidence: 1.0 (merchant confirmed)
 │     → increment fraud counter
-│     → update merchant stats
 │
-└── Override (not fraud)
+└── Override (not fraud — false positive)
       → record as false positive
       → do NOT store in Pinecone
       → trigger per-merchant weight adjustment
-      → log for pattern analysis
+      → log fired signals for analysis
 ```
 
 ---
 
 ## Per-Merchant Weight Personalization
 
-This is what makes the plugin 10x more valuable than competitors.
+### The Problem
 
-### The problem
+Global weights suit average stores. A luxury jewelry store has very different fraud patterns from a $10 digital download shop.
 
-Global weights work for average stores. A luxury jewelry store has very different fraud patterns from a $10 digital download shop.
+### The Solution
 
-### The solution
-
-Each merchant gets their own weight profile that adjusts automatically over time based on their confirmed overrides.
+Each merchant gets a weight profile that adjusts automatically based on their override history.
 
 ```
 Override happens
       ↓
-Which signals fired on this false positive?
+Record which signals fired on this false positive
       ↓
-Reduce those signal weights by small delta
-for this merchant only (never globally)
+Reduce those signal weights by delta (0.02)
+for this merchant only — never globally
       ↓
-Store as merchant_weight_profile in wp_options
+Save as merchant_weight_profile in wp_options
       ↓
 Next order uses personalized weights
       ↓
 After 10+ overrides, weights are calibrated
-to this merchant's specific business type
+to this merchant's specific business type 🧠
 ```
 
-### Weight adjustment formula
+### Weight Adjustment Formula
 
 ```php
 $delta = 0.02; // small reduction per override
+$floor = 0.01; // never go below this
 
 foreach ($fired_signals as $signal) {
-    $merchant_weights[$signal] = max(
-        0.01, // floor — never go below this
-        $merchant_weights[$signal] - $delta
+    $weights[$signal] = max(
+        $floor,
+        $weights[$signal] - $delta
     );
 }
 
-// Save personalized profile
-update_option('aifd_merchant_weights', $merchant_weights);
+update_option('aifd_merchant_weights', $weights);
 ```
 
-### Why per-merchant not global
+### Why Per-Merchant Not Global
 
 ```
-Global weight reduction = breaks detection for all merchants
-Per-merchant reduction  = personalizes to your store only
+Digital goods store
+→ odd_hours weight reduced over time
+   (customers legitimately buy at 3am)
 
-Example:
-Digital goods store     → odd_hours weight reduced
-                          (customers buy at 3am legitimately)
-
-Physical goods store    → odd_hours weight unchanged
-                          (3am physical orders are suspicious)
+Physical goods store
+→ odd_hours weight stays high
+   (3am physical orders are suspicious)
 ```
 
-### Weight profile storage
+---
 
-```php
-// Stored per merchant in wp_options
-// Starts as global defaults
-// Adjusts over time based on overrides
-$weight_profile = array(
-    'odd_hours'        => 0.03, // reduced — ships globally
-    'guest_checkout'   => 0.02, // reduced — most are guests
-    'address_mismatch' => 0.20, // unchanged — still strong
-    'disposable_email' => 0.25, // unchanged — always reliable
-    // ...
-);
-```
+## Seed Pattern Dataset
+
+65 patterns loaded at install into merchant's Pinecone namespace:
+
+| Category | Count | Fraud Types Covered |
+|----------|-------|---------------------|
+| Card fraud | 20 | Stolen cards, prepaid cards, high value |
+| Card testing | 10 | Bot testing, velocity attacks, overnight |
+| Reshipping fraud | 10 | Freight forwarders, organized rings |
+| Chargeback fraud | 8 | Serial chargebacks, cycling identities |
+| Identity fraud | 7 | VPN masking, account takeover |
+| Legitimate orders | 15 | Returns, corporates, gifts, renewals |
+
+Without legitimate patterns, every order looks suspicious because there is no contrast. The 15 legitimate patterns are as important as the 50 fraud patterns.
 
 ---
 
@@ -389,52 +463,52 @@ $weight_profile = array(
 
 ```
 WooCommerce (WordPress Hook) ─────────┐
-EDD (WordPress Hook) ─────────────────├──► AI Fraud Engine
-SureCart (WordPress Hook) ────────────┤    (Core PHP Logic)
-Shopify (Webhook → Python API) ───────┘    ├── Signal extraction
+EDD (WordPress Hook) ─────────────────├──► AI Fraud Engine (PHP)
+SureCart (WordPress Hook) ────────────┤    ├── 17 signal extraction
+Shopify (Webhook → Python API) ───────┘    ├── Embedding abstraction
+                                           ├── Pinecone namespace search
                                            ├── Provider routing
-                                           ├── Pinecone search
                                            └── Weight personalization
 ```
 
-WooCommerce, EDD, SureCart connect via WordPress hooks (same server).
-Shopify connects via webhook to a separate Python/FastAPI service on Azure.
+WooCommerce, EDD, SureCart — WordPress hooks (same server, zero latency).
+Shopify — webhook to separate Python/FastAPI service on Azure.
 
 ---
 
-## Settings Page
+## Settings Page Structure
 
 ```
-AI Provider Settings
-────────────────────
-Provider: ○ OpenAI  ○ Anthropic  ○ Google Gemini  ○ Ollama
+AI Provider
+└── Choose: OpenAI / Anthropic / Gemini / Ollama
 
-OpenAI Settings:
-  API Key: [sk-proj-xxxxxxxxxxxxx    ]
-  Model:   [gpt-4o-mini            ▼]
+OpenAI Settings
+├── API Key (used for scoring + embeddings)
+└── Model: gpt-4o-mini | gpt-4o
 
-Anthropic Settings:
-  API Key: [sk-ant-xxxxxxxxxxxxx    ]
-  Model:   [claude-haiku-4-5-20251001 ▼]
+Anthropic Settings
+├── API Key (Claude — for scoring only)
+├── Voyage AI Key ⚠️ (for embeddings — separate key)
+└── Model: claude-haiku-4-5-20251001 | claude-sonnet-4-6
 
-Google Gemini Settings:
-  API Key: [AIzaxxxxxxxxxxxxx       ]
-  Model:   [gemini-1.5-flash       ▼]
+Google Gemini Settings
+├── API Key (used for scoring + embeddings)
+└── Model: gemini-1.5-flash | gemini-1.5-pro
 
-Ollama Settings:
-  Host:    [http://localhost:11434  ]
-  Model:   [llama3                 ]
-  Note: No API key needed. All inference stays on your server.
+Ollama Settings
+├── Host URL (default: http://localhost:11434)
+└── Model (any installed model)
 
-Pinecone Settings:
-  API Key: [pc-xxxxxxxxxxxxx        ]
-  Index:   [fraud-patterns          ]
+Pinecone Settings
+├── API Key
+├── Index: fraud-patterns-1536 (OpenAI)
+│         fraud-patterns-1024 (Anthropic)
+│         fraud-patterns-768  (Gemini/Ollama)
+└── [Load 65 Seed Patterns] button
 
-Risk Settings:
-  Block threshold:  [70] (orders above this score are blocked)
-  Review threshold: [40] (orders above this score need review)
-
-[ Test Connection ]  [ Save Settings ]
+Risk Thresholds
+├── Block threshold: 70 (default)
+└── Review threshold: 40 (default)
 ```
 
 ---
@@ -446,12 +520,15 @@ Risk Settings:
 | WordPress plugin | PHP 8.0+ |
 | Frontend dashboard | React + @wordpress/scripts |
 | REST API | WordPress REST API |
-| AI scoring (default) | OpenAI GPT-4o-mini (function calling) |
-| AI scoring (alt) | Anthropic claude-haiku-4-5-20251001 |
-| AI scoring (alt) | Google Gemini 1.5 Flash |
+| AI scoring (OpenAI) | GPT-4o-mini (function calling) |
+| AI scoring (Anthropic) | claude-haiku-4-5-20251001 (tool use) |
+| AI scoring (Gemini) | gemini-1.5-flash (function declarations) |
 | AI scoring (local) | Ollama (any model, free, private) |
-| Embeddings | OpenAI text-embedding-3-small |
-| Vector store | Pinecone (serverless) |
+| Embeddings (OpenAI) | text-embedding-3-small (1536d) |
+| Embeddings (Anthropic) | voyage-3 via Voyage AI (1024d) |
+| Embeddings (Gemini) | text-embedding-004 (768d) |
+| Embeddings (Ollama) | nomic-embed-text (768d) |
+| Vector store | Pinecone serverless (namespaced) |
 | Future: Shopify API | Python + FastAPI + Azure |
 
 ---
@@ -460,64 +537,75 @@ Risk Settings:
 
 ```
 ai-fraud-detector/
-├── ai-fraud-detector.php              # Main plugin file, constants, requires
+├── ai-fraud-detector.php              # Main plugin file
 ├── ARCHITECTURE.md                    # This document
+├── ROADMAP.md                         # Development roadmap
 ├── package.json                       # Node dependencies
 ├── includes/
 │   ├── fraud-detection.php            # Signal extraction + scoring
-│   ├── rest-api.php                   # REST API endpoints
+│   ├── rest-api.php                   # REST API + AJAX handlers
 │   ├── admin-menu.php                 # Admin menu + React loader
+│   ├── settings-page.php              # Settings page + registration
+│   ├── class-embeddings.php           # Embedding abstraction layer
+│   ├── class-pinecone.php             # Pinecone integration
+│   ├── class-seed-loader.php          # Seed pattern loader
 │   └── providers/
-│       ├── class-provider-base.php    # Shared provider interface
-│       ├── class-provider-openai.php  # OpenAI implementation
-│       ├── class-provider-anthropic.php # Anthropic implementation
-│       ├── class-provider-gemini.php  # Google Gemini implementation
-│       └── class-provider-ollama.php  # Local Ollama implementation
+│       ├── class-provider-base.php    # Shared interface
+│       ├── class-provider-openai.php  # OpenAI
+│       ├── class-provider-anthropic.php # Anthropic
+│       ├── class-provider-gemini.php  # Google Gemini
+│       └── class-provider-ollama.php  # Local Ollama
 ├── admin/
 │   └── dashboard.php                  # React mount point
 ├── src/
 │   └── index.js                       # React dashboard
-├── build/                             # Compiled React (committed)
-│   ├── index.js
-│   └── index.asset.php
+├── build/                             # Compiled React
 └── data/
-    └── seed-patterns.json             # 50 seed fraud patterns
+    └── seed-patterns.json             # 65 seed patterns
 ```
 
 ---
 
 ## Development Roadmap
 
-### Phase 1 — Core plugin (complete ✅)
-- [x] WooCommerce order capture via hook
-- [x] 16 fraud signal extraction
-- [x] Rule-based scoring engine
+### Phase 1 — Foundation (Complete ✅)
+- [x] WooCommerce order capture
+- [x] 17 fraud signal extraction
+- [x] Weighted rule scoring
 - [x] OpenAI basic scoring
 - [x] Auto flag + email alerts
 - [x] React dashboard
 - [x] WordPress REST API
-- [x] Order meta storage
-- [x] Stats tracking
+- [x] Multi-provider architecture
+- [x] Settings page
 
-### Phase 2 — Production AI (current)
-- [ ] Weighted scoring matrix (proper weights)
-- [ ] Multi-provider architecture (OpenAI/Anthropic/Gemini/Ollama)
-- [ ] Settings page with provider selection
-- [ ] Pinecone setup + seed pattern loading
-- [ ] Feedback loop (confirm fraud / override)
-- [ ] Per-merchant weight personalization
-- [ ] OpenAI/Anthropic function calling
-- [ ] End-to-end testing
+### Phase 2 — Production AI (In Progress 🔥)
+- [x] 65 seed patterns created
+- [x] chargeback_history signal #17
+- [x] Pinecone account + index setup
+- [x] Initial seed load (OpenAI namespace)
+- [ ] Embedding abstraction layer (Day 16)
+- [ ] Re-seed per provider namespace (Day 17)
+- [ ] Connect Pinecone to scoring pipeline (Day 18)
+- [ ] Function calling replaces basic prompt (Day 19)
+- [ ] Test function calling end to end (Day 20)
+- [ ] Feedback loop UI (Day 21)
+- [ ] Feedback loop saves to Pinecone (Day 22)
+- [ ] Per-merchant weight personalization (Day 23)
+- [ ] End to end testing (Day 24)
+- [ ] Bug fixes (Day 25)
+- [ ] README + ARCHITECTURE.md update (Day 26)
+- [ ] GitHub cleanup, portfolio ready (Day 27)
 
-### Phase 3 — Platform expansion
+### Phase 3 — Platform Expansion (Planned)
 - [ ] EDD integration
 - [ ] SureCart integration
 - [ ] Shopify webhook + Python API on Azure
 - [ ] WordPress.org submission
 
-### Phase 4 — Growth
+### Phase 4 — Growth (Future)
 - [ ] Community pattern sharing (opt-in, anonymized)
-- [ ] Analytics and reporting dashboard
+- [ ] Analytics and reporting
 - [ ] White label option
 - [ ] SaaS pricing model
 
@@ -525,33 +613,31 @@ ai-fraud-detector/
 
 ## Security Considerations
 
-- All API keys stored encrypted in wp_options
+- All API keys stored in wp_options (encrypted)
 - All REST API endpoints require manage_options capability
 - Nonce verification on all admin actions
-- Input sanitization on all user data (sanitize_text_field)
-- No customer PII stored in Pinecone — behavior patterns only
-- GDPR compliant — pattern embeddings contain no personal data
-- Ollama option for merchants with strict data sovereignty requirements
-
----
-
-## Interview Talking Points
-
-When asked about this system in Qatar AI Engineer interviews:
-
-> "I built a production-grade fraud detection system for WooCommerce using a provider-agnostic AI architecture. Merchants choose between OpenAI, Anthropic, Google Gemini, or run completely locally with Ollama for privacy-sensitive deployments. The AI agent uses function calling to autonomously decide which tools to invoke — signal analysis, Pinecone vector similarity search, and velocity checking — before synthesizing a final risk decision. The system includes a merchant feedback loop where confirmed fraud patterns are stored as embeddings in Pinecone, and false positives trigger per-merchant weight adjustment using a delta-based personalization algorithm. This means the system calibrates itself to each store's specific fraud patterns over time."
+- Input sanitization on all user data
+- No customer PII stored in Pinecone — patterns only
+- GDPR compliant — embeddings contain no personal data
+- Ollama option for strict data sovereignty requirements
+- Voyage AI fallback to OpenAI if key not provided
 
 ---
 
 ## Competitive Advantages
 
-| Feature | Our plugin | Competitors |
+| Feature | Our Plugin | Competitors |
 |---------|-----------|-------------|
 | Multi-provider AI | ✅ 4 providers | ❌ OpenAI only |
-| Local AI option | ✅ Ollama | ❌ None |
-| Vector memory | ✅ Pinecone | ❌ None |
-| Per-merchant learning | ✅ Yes | ❌ None |
+| Provider-native embeddings | ✅ Each provider uses own model | ❌ None |
+| Namespaced vector store | ✅ Per merchant + provider | ❌ None |
+| Local AI option (Ollama) | ✅ Free, private, no API key | ❌ None |
+| Vector memory (Pinecone) | ✅ Learns from fraud history | ❌ None |
+| Per-merchant learning | ✅ Weight personalization | ❌ None |
 | Feedback loop | ✅ Confirm/Override | ❌ None |
-| Seed patterns | ✅ 50 on install | ❌ None |
-| Function calling | ✅ Agentic AI | ❌ Basic prompts |
-| WooCommerce + EDD + SureCart + Shopify | ✅ All platforms | ❌ WooCommerce only |
+| Seed patterns on install | ✅ 65 patterns day one | ❌ None |
+| Function calling agent | ✅ Agentic AI | ❌ Basic prompts |
+| Multi-platform | ✅ WooCommerce + EDD + SureCart + Shopify | ❌ WooCommerce only |
+
+---
+

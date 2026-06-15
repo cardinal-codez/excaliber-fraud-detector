@@ -113,6 +113,26 @@ function aifd_register_settings() {
         'default'           => 'fraud-patterns'
     ));
 
+    // Add to register_settings:
+    register_setting( 'aifd_settings', 'aifd_voyage_key', array(
+        'sanitize_callback' => 'sanitize_text_field',
+        'default'           => ''
+    ));
+
+    // Add these Pinecone index settings per provider:
+    register_setting( 'aifd_settings', 'aifd_pinecone_index_openai', array(
+        'sanitize_callback' => 'sanitize_text_field',
+        'default'           => 'fraud-patterns-1536'
+    ));
+    register_setting( 'aifd_settings', 'aifd_pinecone_index_anthropic', array(
+        'sanitize_callback' => 'sanitize_text_field',
+        'default'           => 'fraud-patterns-1024'
+    ));
+    register_setting( 'aifd_settings', 'aifd_pinecone_index_768', array(
+        'sanitize_callback' => 'sanitize_text_field',
+        'default'           => 'fraud-patterns-768'
+    ));
+
 }
 
 // ══════════════════════════════════════════════
@@ -179,6 +199,22 @@ function aifd_render_settings_page() {
                         </select>
                     </td>
                 </tr>
+
+                <tr>
+                    <th scope="row">Voyage AI Key <span style="color:#856404">(for embeddings)</span></th>
+                    <td>
+                        <input type="password"
+                            name="aifd_voyage_key"
+                            value="<?php echo esc_attr( get_option('aifd_voyage_key') ); ?>"
+                            class="regular-text"
+                            placeholder="pa-...">
+                        <p class="description" style="color:#856404">
+                            ⚠️ Anthropic doesn't provide embeddings.
+                            Get a free Voyage AI key at
+                            <a href="https://www.voyageai.com" target="_blank">voyageai.com</a>
+                        </p>
+                    </td>
+                </tr>
             </table>
 
             <h2>Google Gemini Settings</h2>
@@ -201,21 +237,50 @@ function aifd_render_settings_page() {
             </table>
 
             <h2>Ollama Settings (Local AI)</h2>
-            <p><em>No API key needed. All inference stays on your server.</em></p>
+            <div style="background:#fff3cd;border:1px solid #f59e0b;border-radius:6px;padding:12px 16px;margin-bottom:16px">
+                <strong>⚠️ Ollama — Local Deployment Only</strong>
+                <p style="margin:6px 0 0">
+                    Ollama requires a locally running LLM server on the same machine as WordPress.
+                    It is <strong>not compatible with shared hosting</strong> environments
+                    (Cloudways, SiteGround, Bluehost, WP Engine etc).
+                </p>
+                <p style="margin:6px 0 0">Ollama works for:</p>
+                <ul style="margin:4px 0 0;padding-left:20px">
+                    <li>Local development environments</li>
+                    <li>Self-hosted VPS with 8GB+ RAM</li>
+                    <li>Dedicated servers where you control the environment</li>
+                </ul>
+                <p style="margin:6px 0 0">
+                    If you are on shared hosting, choose OpenAI, Anthropic, or Gemini instead.
+                </p>
+            </div>
             <table class="form-table">
                 <tr>
                     <th scope="row">Host URL</th>
                     <td>
-                        <input type="url" name="aifd_ollama_host" value="<?php echo esc_attr( get_option( 'aifd_ollama_host', 'http://localhost:11434' ) ); ?>" class="regular-text">
+                        <input type="url"
+                            name="aifd_ollama_host"
+                            value="<?php echo esc_attr( get_option( 'aifd_ollama_host', 'http://localhost:11434' ) ); ?>"
+                            class="regular-text">
+                        <p class="description">Default: http://localhost:11434</p>
                     </td>
                 </tr>
                 <tr>
                     <th scope="row">Model</th>
                     <td>
-                        <input type="text" name="aifd_ollama_model" value="<?php echo esc_attr( get_option( 'aifd_ollama_model', 'llama3' ) ); ?>" class="regular-text" placeholder="llama3, mistral, qwen2.5...">
+                        <input type="text"
+                            name="aifd_ollama_model"
+                            value="<?php echo esc_attr( get_option( 'aifd_ollama_model', 'llama3' ) ); ?>"
+                            class="regular-text"
+                            placeholder="llama3, mistral, qwen2.5...">
+                        <p class="description">
+                            Must support embeddings via nomic-embed-text.
+                            Run: <code>ollama pull nomic-embed-text</code>
+                        </p>
                     </td>
                 </tr>
             </table>
+
 
             <h2>Risk Thresholds</h2>
             <table class="form-table">
@@ -321,4 +386,119 @@ function aifd_render_settings_page() {
     </div>
 
     <?php
+}
+
+// Detect provider switch on save
+add_action( 'updated_option', 'aifd_detect_provider_switch', 10, 3 );
+
+function aifd_detect_provider_switch( $option, $old_value, $new_value ) {
+
+    if ( $option !== 'aifd_ai_provider' ) return;
+    if ( $old_value === $new_value ) return;
+    if ( empty( $old_value ) ) return;
+
+    // Store the switch for warning display
+    update_option( 'aifd_provider_switched', array(
+        'from'    => $old_value,
+        'to'      => $new_value,
+        'time'    => time(),
+        'handled' => false,
+    ));
+
+}
+
+// Show warning after provider switch
+add_action( 'admin_notices', 'aifd_provider_switch_notice' );
+
+function aifd_provider_switch_notice() {
+
+    $screen = get_current_screen();
+    if ( ! $screen || strpos( $screen->id, 'ai-fraud-detector' ) === false ) return;
+
+    $switch = get_option( 'aifd_provider_switched', array() );
+    if ( empty( $switch ) || ! empty( $switch['handled'] ) ) return;
+
+    $from = strtoupper( $switch['from'] );
+    $to   = strtoupper( $switch['to'] );
+
+    ?>
+    <div class="notice notice-warning" style="border-left-color:#f59e0b">
+        <h3 style="margin:.5rem 0">⚠️ AI Provider Changed — Action Required</h3>
+        <p>
+            You switched from <strong><?php echo esc_html( $from ); ?></strong>
+            to <strong><?php echo esc_html( $to ); ?></strong>.
+        </p>
+        <p>
+            Your confirmed fraud patterns were stored in the
+            <code><?php echo esc_html( $switch['from'] ); ?></code> namespace.
+            The new provider uses a different embedding model and a separate namespace
+            — your learned patterns are not available yet.
+        </p>
+        <p><strong>Choose how to handle this:</strong></p>
+        <p>
+            <button type="button"
+                id="aifd-migrate-patterns"
+                class="button button-primary"
+                data-from="<?php echo esc_attr( $switch['from'] ); ?>"
+                data-to="<?php echo esc_attr( $switch['to'] ); ?>">
+                Re-embed patterns for <?php echo esc_html( $to ); ?>
+            </button>
+            &nbsp;
+            <button type="button"
+                id="aifd-start-fresh"
+                class="button button-secondary">
+                Start fresh with new provider
+            </button>
+            &nbsp;
+            <span id="aifd-migration-status" style="margin-left:10px"></span>
+        </p>
+        <p class="description">
+            Re-embedding copies all confirmed patterns from
+            <strong><?php echo esc_html( $from ); ?></strong> namespace
+            and re-embeds them using <strong><?php echo esc_html( $to ); ?></strong>
+            embedding model. This may take 1-2 minutes depending on pattern count.
+        </p>
+    </div>
+
+    <script>
+    document.getElementById('aifd-migrate-patterns').addEventListener('click', function() {
+        const btn    = this;
+        const status = document.getElementById('aifd-migration-status');
+        btn.disabled = true;
+        status.innerHTML = '⏳ Re-embedding patterns...';
+
+        fetch(aifd_settings.ajaxurl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=aifd_migrate_patterns' +
+                  '&nonce=' + aifd_settings.nonce +
+                  '&from=' + btn.dataset.from +
+                  '&to=' + btn.dataset.to
+        })
+        .then( r => r.json() )
+        .then( data => {
+            if ( data.success ) {
+                status.innerHTML = '✅ ' + data.data.message;
+                setTimeout( () => location.reload(), 2000 );
+            } else {
+                status.innerHTML = '❌ ' + data.data.message;
+                btn.disabled = false;
+            }
+        });
+    });
+
+    document.getElementById('aifd-start-fresh').addEventListener('click', function() {
+        if ( ! confirm('Start fresh? Your learned patterns from the old provider will not be migrated.') ) return;
+
+        fetch(aifd_settings.ajaxurl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=aifd_dismiss_migration&nonce=' + aifd_settings.nonce
+        })
+        .then( r => r.json() )
+        .then( () => location.reload() );
+    });
+    </script>
+    <?php
+
 }
