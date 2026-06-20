@@ -301,85 +301,126 @@ function aifd_render_settings_page() {
             </table>
 
             <h2>Pinecone Settings</h2>
-        <table class="form-table">
-            <tr>
-                <th scope="row">API Key</th>
-                <td>
-                    <input type="password"
-                        name="aifd_pinecone_key"
-                        value="<?php echo esc_attr( get_option('aifd_pinecone_key') ); ?>"
-                        class="regular-text"
-                        placeholder="pc-xxxxxxxxxxxxxxxx">
-                </td>
-            </tr>
-            <tr>
-                <th scope="row">Index Host URL</th>
-                <td>
-                    <input type="url"
-                        name="aifd_pinecone_host"
-                        value="<?php echo esc_attr( get_option('aifd_pinecone_host') ); ?>"
-                        class="regular-text"
-                        placeholder="https://fraud-patterns-xxx.svc.xxx.pinecone.io">
-                    <p class="description">Found in your Pinecone dashboard under the index details.</p>
-                </td>
-            </tr>
-            <tr>
-                <th scope="row">Index Name</th>
-                <td>
-                    <input type="text"
-                        name="aifd_pinecone_index"
-                        value="<?php echo esc_attr( get_option('aifd_pinecone_index', 'fraud-patterns') ); ?>"
-                        class="regular-text">
-                </td>
-            </tr>
-        </table>
+            <table class="form-table">
+                <tr>
+                    <th scope="row">API Key</th>
+                    <td>
+                        <input type="password"
+                            name="aifd_pinecone_key"
+                            value="<?php echo esc_attr( get_option('aifd_pinecone_key') ); ?>"
+                            class="regular-text"
+                            placeholder="pcsk-xxxxxxxxxxxxxxxx">
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Index Host URL</th>
+                    <td>
+                        <input type="url"
+                            name="aifd_pinecone_host"
+                            value="<?php echo esc_attr( get_option('aifd_pinecone_host') ); ?>"
+                            class="regular-text"
+                            placeholder="https://fraud-patterns-xxx.svc.xxx.pinecone.io">
+                        <p class="description">
+                            The index host depends on which provider you select below —
+                            each embedding dimension needs its own index.
+                        </p>
+                    </td>
+                </tr>
+            </table>
 
-        <!-- Load Seeds Button -->
-        <h2>Seed Patterns</h2>
-        <table class="form-table">
-            <tr>
-                <th scope="row">Load Seed Patterns</th>
-                <td>
-                    <button type="button" id="aifd-load-seeds" class="button button-secondary">
-                        Load 65 Seed Patterns into Pinecone
-                    </button>
-                    <span id="aifd-seed-status" style="margin-left:10px;"></span>
-                    <p class="description">
-                        Loads 50 fraud patterns + 15 legitimate patterns into Pinecone.
-                        Only needs to be done once.
-                    </p>
-                </td>
-            </tr>
-        </table>
+            <h3 style="margin-top:1.5rem">Index Per Embedding Dimension</h3>
+            <p class="description" style="margin-bottom:10px">
+                Different providers produce different vector sizes. Create one Pinecone index per
+                dimension and enter the names below — the plugin automatically picks the right one.
+            </p>
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        OpenAI Index <span style="color:#64748b">(1536 dimensions)</span>
+                    </th>
+                    <td>
+                        <input type="text"
+                            name="aifd_pinecone_index_openai"
+                            value="<?php echo esc_attr( get_option('aifd_pinecone_index_openai', 'fraud-patterns-1536') ); ?>"
+                            class="regular-text">
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        Anthropic Index <span style="color:#64748b">(1024 dimensions — Voyage AI)</span>
+                    </th>
+                    <td>
+                        <input type="text"
+                            name="aifd_pinecone_index_anthropic"
+                            value="<?php echo esc_attr( get_option('aifd_pinecone_index_anthropic', 'fraud-patterns-1024') ); ?>"
+                            class="regular-text">
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        Gemini / Ollama Index <span style="color:#64748b">(768 dimensions)</span>
+                    </th>
+                    <td>
+                        <input type="text"
+                            name="aifd_pinecone_index_768"
+                            value="<?php echo esc_attr( get_option('aifd_pinecone_index_768', 'fraud-patterns-768') ); ?>"
+                            class="regular-text">
+                        <p class="description">
+                            Gemini and Ollama both produce 768-dimension vectors and can share one index
+                            (they use separate namespaces, so data never mixes).
+                        </p>
+                    </td>
+                </tr>
+            </table>
 
-        <script>
-        document.getElementById('aifd-load-seeds').addEventListener('click', function() {
-            const btn    = this;
-            const status = document.getElementById('aifd-seed-status');
+            <!-- Load Seeds Button -->
+            <h2>Seed Patterns</h2>
+            <table class="form-table">
+                <tr>
+                    <th scope="row">Load Seed Patterns</th>
+                    <td>
+                        <button type="button" id="aifd-load-seeds" class="button button-secondary">
+                            Load 65 Seed Patterns into Pinecone
+                        </button>
+                        <span id="aifd-seed-status" style="margin-left:10px;"></span>
+                        <p class="description">
+                            Loads 50 fraud patterns + 15 legitimate patterns into Pinecone,
+                            embedded with your currently selected provider
+                            (<strong><?php echo esc_html( strtoupper( get_option('aifd_ai_provider', 'openai') ) ); ?></strong>)
+                            and stored in your merchant namespace. Only needs to be done once per provider.
+                        </p>
+                    </td>
+                </tr>
+            </table>
 
-            btn.disabled    = true;
-            status.innerHTML = '⏳ Loading patterns...';
+            <script>
+            document.getElementById('aifd-load-seeds').addEventListener('click', function() {
+                const btn    = this;
+                const status = document.getElementById('aifd-seed-status');
 
-            fetch(aifd_settings.ajaxurl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=aifd_load_seeds&nonce=' + aifd_settings.nonce
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    status.innerHTML = '✅ ' + data.data.message;
-                } else {
-                    status.innerHTML = '❌ ' + data.data.message;
-                }
-                btn.disabled = false;
-            })
-            .catch(() => {
-                status.innerHTML = '❌ Request failed';
-                btn.disabled = false;
+                btn.disabled     = true;
+                status.innerHTML = '⏳ Embedding and loading patterns...';
+
+                fetch(aifd_settings.ajaxurl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'action=aifd_load_seeds&nonce=' + aifd_settings.nonce
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        status.innerHTML = '✅ ' + data.data.message;
+                    } else {
+                        status.innerHTML = '❌ ' + data.data.message;
+                    }
+                    btn.disabled = false;
+                })
+                .catch(() => {
+                    status.innerHTML = '❌ Request failed';
+                    btn.disabled = false;
+                });
             });
-        });
-        </script>
+            </script>
 
             <?php submit_button(); ?>
         </form>

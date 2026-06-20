@@ -88,7 +88,10 @@ class AIFD_Embeddings {
 
         $api_key = get_option( 'aifd_openai_key', '' );
 
-        if ( empty( $api_key ) ) return false;
+        if ( empty( $api_key ) ) {
+            error_log( 'AIFD Embeddings: OpenAI key missing' );
+            return false;
+        }
 
         $response = wp_remote_post( 'https://api.openai.com/v1/embeddings', array(
             'timeout' => 30,
@@ -102,7 +105,11 @@ class AIFD_Embeddings {
             )),
         ));
 
-        if ( is_wp_error( $response ) ) return false;
+        if ( is_wp_error( $response ) ) {
+            error_log( 'AIFD Embeddings: OpenAI request failed — ' . $response->get_error_message() );
+            return false;
+        }
+
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
         return $data['data'][0]['embedding'] ?? false;
@@ -134,7 +141,10 @@ class AIFD_Embeddings {
             )),
         ));
 
-        if ( is_wp_error( $response ) ) return false;
+        if ( is_wp_error( $response ) ) {
+            error_log( 'AIFD Embeddings: Voyage request failed — falling back to OpenAI' );
+            return $this->embed_openai( $text );
+        }
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
         return $data['data'][0]['embedding'] ?? false;
@@ -148,7 +158,10 @@ class AIFD_Embeddings {
 
         $api_key = get_option( 'aifd_gemini_key', '' );
 
-        if ( empty( $api_key ) ) return false;
+        if ( empty( $api_key ) ) {
+            error_log( 'AIFD Embeddings: Gemini key missing' );
+            return false;
+        }
 
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=' . $api_key;
 
@@ -167,7 +180,10 @@ class AIFD_Embeddings {
             )),
         ));
 
-        if ( is_wp_error( $response ) ) return false;
+        if ( is_wp_error( $response ) ) {
+            error_log( 'AIFD Embeddings: Gemini request failed — ' . $response->get_error_message() );
+            return false;
+        }
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
         return $data['embedding']['values'] ?? false;
@@ -193,7 +209,10 @@ class AIFD_Embeddings {
             )),
         ));
 
-        if ( is_wp_error( $response ) ) return false;
+        if ( is_wp_error( $response ) ) {
+            error_log( 'AIFD Embeddings: Ollama request failed — is Ollama running?' );
+            return false;
+        }
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
         return $data['embedding'] ?? false;

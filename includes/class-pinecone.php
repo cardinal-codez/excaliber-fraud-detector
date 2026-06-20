@@ -53,7 +53,12 @@ class AIFD_Pinecone {
             'body' => json_encode( $body ),
         ));
 
-        return ! is_wp_error( $response );
+        if ( is_wp_error( $response ) ) {
+            error_log( 'AIFD Pinecone upsert error: ' . $response->get_error_message() );
+            return false;
+        }
+
+        return true;
 
     }
 
@@ -111,11 +116,16 @@ class AIFD_Pinecone {
         if ( empty( $pattern_text ) ) return array();
 
         // Use provider-specific embedding
-        $embedding = $this->embeddings->embed( $pattern_text );
-        if ( ! $embedding ) return array();
+        $provider  = get_option( 'aifd_ai_provider', 'openai' );
+        $embedding = $this->embeddings->embed( $pattern_text, $provider );
+
+        if ( ! $embedding ) {
+            error_log( 'AIFD Pinecone: embedding failed for pattern search' );
+            return array();
+        }
 
         // Use provider-specific namespace
-        $namespace = $this->embeddings->get_namespace();
+        $namespace = $this->embeddings->get_namespace($provider);
 
         return $this->query( $embedding, $top_k, $namespace );
 
@@ -160,10 +170,16 @@ class AIFD_Pinecone {
     /**
      * Delete a vector by ID
      */
-    public function delete( $id ) {
+    public function delete( $id, $namespace = '' ) {
 
         if ( ! $this->is_configured() ) {
             return false;
+        }
+
+        $body = array( 'ids' => array( $id ) );
+
+        if ( ! empty( $namespace ) ) {
+            $body['namespace'] = $namespace;
         }
 
         wp_remote_post( $this->host . '/vectors/delete', array(
@@ -172,9 +188,7 @@ class AIFD_Pinecone {
                 'Api-Key'      => $this->api_key,
                 'Content-Type' => 'application/json',
             ),
-            'body' => json_encode( array(
-                'ids' => array( $id ),
-            )),
+            'body' => json_encode($body),
         ));
 
         return true;

@@ -4,31 +4,37 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class AIFD_Seed_Loader {
 
     private $pinecone;
-    private $openai_key;
+    private $embeddings;
 
     public function __construct() {
         $this->pinecone   = new AIFD_Pinecone();
-        $this->openai_key = get_option( 'aifd_openai_key', '' );
+        $this->embeddings = new AIFD_Embeddings();
     }
 
     /**
-     * Load all seed patterns into Pinecone
+     * Load seeds using current provider + namespace
      */
     public function load_seeds() {
+        $provider  = get_option( 'aifd_ai_provider', 'openai' );
+        $namespace = $this->embeddings->get_namespace( $provider );
+
+        return $this->load_seeds_to_namespace( $namespace, $provider );
+    }
+
+    /**
+     * Load seeds to a specific namespace and provider
+     */
+    public function load_seeds_to_namespace( $namespace, $provider ) {
+
 
         if ( ! $this->pinecone->is_configured() ) {
             return array(
                 'success' => false,
-                'message' => 'Pinecone not configured'
+                'message' => 'Pinecone not configured — add API key and host URL first',
             );
         }
 
-        // if ( empty( $this->openai_key ) ) {
-        //     return array(
-        //         'success' => false,
-        //         'message' => 'OpenAI API key not configured — needed for embeddings'
-        //     );
-        // }
+       
 
         // Load seed patterns from JSON file
         $seed_file = AIFD_PATH . 'data/seed-patterns.json';
@@ -49,11 +55,6 @@ class AIFD_Seed_Loader {
             );
         }
 
-        $embeddings = new AIFD_Embeddings();
-        $namespace  = $embeddings->get_namespace();
-        $provider   = get_option( 'aifd_ai_provider', 'openai' );
-
-
         $loaded  = 0;
         $failed  = 0;
         $skipped = 0;
@@ -61,10 +62,11 @@ class AIFD_Seed_Loader {
         foreach ( $patterns as $pattern ) {
 
             // Embed the pattern text
-            $embedding = $this->embed( $pattern['pattern'], $provider );
+            $embedding = $this->embeddings->embed( $pattern['pattern'], $provider );
 
             if ( ! $embedding ) {
                 $failed++;
+                error_log( 'AIFD Seed Loader: Failed to embed pattern ' . $pattern['id'] );
                 continue;
             }
 
