@@ -458,7 +458,12 @@ function aifd_calculate_risk_score( $signals ) {
 function aifd_call_provider( $signals ) {
 
     $provider_name = get_option( 'aifd_ai_provider', 'openai' );
-    $prompt        = aifd_build_prompt( $signals );
+
+    // Search Pinecone (namespace + provider-native embedding handled internally)
+    $pinecone_context = aifd_get_pinecone_context( $signals );
+
+    // Build prompt with Pinecone context included
+    $prompt = aifd_build_prompt( $signals, $pinecone_context );
 
     switch ( $provider_name ) {
         case 'anthropic':
@@ -476,11 +481,71 @@ function aifd_call_provider( $signals ) {
             break;
     }
 
-    return $provider->call( $prompt );
+    $result = $provider->call( $prompt );
+
+    // Attach Pinecone info for logging
+    $result['pinecone_matches'] = count( $pinecone_context['matches'] ?? array() );
+    $result['pinecone_context'] = $pinecone_context['context_summary'] ?? '';
+
+    return $result;
 
 }
 
-function aifd_build_prompt( $signals ) {
+function aifd_build_prompt( $signals, $pinecone_context = array() ) {
+
+    $context_text = '';
+
+    if ( ! empty( $pinecone_context['available'] ) && ! empty( $pinecone_context['context_summary'] ) ) {
+        $context_text = "
+
+HISTORICAL PATTERN CONTEXT FROM VECTOR DATABASE:
+" . $pinecone_context['context_summary'] . "
+
+Use this historical context alongside the order signals to make a more informed decision.";
+    }
+
+    return "You are a fraud detection expert for an ecommerce store.
+
+Analyze this order and return a JSON fraud risk assessment.
+
+ORDER SIGNALS:
+- Order Total: $" . $signals['order_total'] . "
+- Customer Email: " . $signals['customer_email'] . "
+- Billing Country: " . $signals['billing_country'] . "
+- Shipping Country: " . $signals['shipping_country'] . "
+- Address Mismatch: " . ( $signals['address_mismatch'] ? 'YES' : 'NO' ) . "
+- Disposable Email: " . ( $signals['disposable_email'] ? 'YES' : 'NO' ) . "
+- Card Testing Pattern: " . ( $signals['card_testing_pattern'] ? 'YES' : 'NO' ) . "
+- Freight Forwarder: " . ( $signals['freight_forwarder'] ? 'YES' : 'NO' ) . "
+- High Velocity: " . ( $signals['high_velocity'] ? 'YES' : 'NO' ) . "
+- Risky Country Combo: " . ( $signals['risky_country_combo'] ? 'YES' : 'NO' ) . "
+- Chargeback History: " . ( $signals['chargeback_history'] ? 'YES' : 'NO' ) . "
+- New Customer: " . ( $signals['is_new_customer'] ? 'YES' : 'NO' ) . "
+- Previous Orders: " . $signals['previous_order_count'] . "
+- First Order High Value: " . ( $signals['first_order_high_value'] ? 'YES' : 'NO' ) . "
+- Order Total Anomaly: " . ( $signals['order_total_anomaly'] ? 'YES' : 'NO' ) . "
+- Store Average: $" . round( $signals['store_average'] ?? 0 ) . "
+- Has Phone: " . ( $signals['has_phone'] ? 'YES' : 'NO' ) . "
+- Mismatched Names: " . ( $signals['mismatched_names'] ? 'YES' : 'NO' ) . "
+- Odd Hours: " . ( $signals['odd_hours'] ? 'YES' : 'NO' ) . "
+- Guest Checkout: " . ( $signals['guest_checkout'] ? 'YES' : 'NO' ) . "
+- Payment Method: " . $signals['payment_method'] . "
+" . $context_text . "
+
+Return ONLY valid JSON — no extra text:
+{
+  \"risk_score\": 75,
+  \"risk_level\": \"HIGH\",
+  \"decision\": \"BLOCK\",
+  \"reason\": \"Plain English explanation of why this order is suspicious\"
+}
+
+Risk levels: LOW (0-39), MEDIUM (40-69), HIGH (70-100)
+Decisions: ALLOW, REVIEW, BLOCK";
+
+}
+
+/*function aifd_build_prompt( $signals ) {
 
     return "You are a fraud detection expert for an ecommerce store.
 
@@ -520,7 +585,7 @@ Return ONLY valid JSON — no extra text:
 Risk levels: LOW (0-39), MEDIUM (40-69), HIGH (70-100)
 Decisions: ALLOW, REVIEW, BLOCK";
 
-}
+}*/
 
 // ══════════════════════════════════════════════════════
 // PER-MERCHANT WEIGHT ADJUSTMENT
@@ -638,6 +703,95 @@ function aifd_send_alert_email( $order_id, $ai_result ) {
 
 }
 
+/**
+ * Get Pinecone context for order signals
+*/
+
+/**
+ * Get Pinecone context for order signals
+ */
+function aifd_get_pinecone_context( $signals ) {
+
+    $pinecone = new AIFD_Pinecone();
+
+    if ( ! $pinecone->is_configured() ) {
+        return array(
+            'available'       => false,
+            'matches'         => array(),
+            'context_summary' => 'Pinecone not configured',
+        );
+    }
+
+    $matches = $pinecone->search_similar_patterns( $signals, 5 );
+
+    if ( empty( $matches ) ) {
+        return array(
+            'available'       => true,
+            'matches'         => array(),
+            'context_summary' => 'No similar patterns found in history',
+        );
+    }
+
+    $fraud_matches = array();
+    $legit_matches = array();
+
+    foreach ( $matches as $match ) {
+        $metadata   = $match['metadata'] ?? array();
+        $fraud_type = $metadata['fraud_type'] ?? 'unknown';
+        $score      = round( $match['score'] ?? 0, 3 );
+        $times_seen = $metadata['times_seen'] ?? 0;
+        $confidence = $metadata['confidence'] ?? 0;
+
+        if ( $fraud_type === 'legitimate' ) {
+            $legit_matches[] = array(
+                'score'      => $score,
+                'times_seen' => $times_seen,
+                'confidence' => $confidence,
+            );
+        } else {
+            $fraud_matches[] = array(
+                'fraud_type'  => $fraud_type,
+                'score'       => $score,
+                'times_seen'  => $times_seen,
+                'confidence'  => $confidence,
+                'description' => $metadata['description'] ?? '',
+            );
+        }
+    }
+
+    $summary_parts = array();
+
+    if ( ! empty( $fraud_matches ) ) {
+        $top = $fraud_matches[0];
+        $summary_parts[] = "Similar fraud pattern found: {$top['fraud_type']} " .
+                          "(similarity: {$top['score']}, seen {$top['times_seen']} times, " .
+                          "confidence: {$top['confidence']})";
+
+        if ( ! empty( $top['description'] ) ) {
+            $summary_parts[] = "Pattern description: {$top['description']}";
+        }
+    }
+
+    if ( ! empty( $legit_matches ) ) {
+        $top = $legit_matches[0];
+        $summary_parts[] = "Also matches legitimate pattern " .
+                          "(similarity: {$top['score']}, seen {$top['times_seen']} times)";
+    }
+
+    if ( empty( $summary_parts ) ) {
+        $summary_parts[] = 'No strong pattern matches found';
+    }
+
+    return array(
+        'available'       => true,
+        'matches'         => $matches,
+        'fraud_matches'   => $fraud_matches,
+        'legit_matches'   => $legit_matches,
+        'context_summary' => implode( '. ', $summary_parts ),
+    );
+
+}
+
 // ══════════════════════════════════════════════════════
 // LOGGING
 // ══════════════════════════════════════════════════════
@@ -655,7 +809,11 @@ function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result )
     $log_entry .= "   Decision: " . $ai_result['decision'] . "\n";
     $log_entry .= "   Reason:   " . $ai_result['reason'] . "\n";
     $log_entry .= "----------------------------------------\n";
-    $log_entry .= "📋 RULE SCORING (Backup):\n";
+    $log_entry .= "🔍 PINECONE CONTEXT:\n";
+    $log_entry .= "   Matches:  " . ( $ai_result['pinecone_matches'] ?? 0 ) . " similar patterns found\n";
+    $log_entry .= "   Context:  " . ( $ai_result['pinecone_context'] ?? 'None' ) . "\n";
+    $log_entry .= "----------------------------------------\n";
+        $log_entry .= "📋 RULE SCORING (Backup):\n";
     $log_entry .= "   Score:    " . $rule_result['risk_score'] . "/100\n";
     $log_entry .= "   Level:    " . $rule_result['risk_level'] . "\n";
     $log_entry .= "   Decision: " . $rule_result['decision'] . "\n";

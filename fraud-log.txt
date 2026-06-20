@@ -110,3 +110,118 @@
     "suspicious_email": true
 }
 
+========================================
+2026-06-20 12:49:08 - Order #51
+========================================
+🤖 AI SCORING (OPENAI):
+   Score:    75/100
+   Level:    HIGH
+   Decision: BLOCK
+   Reason:   The order shows multiple red flags including a high total, an address mismatch, a disposable email, and an order total anomaly compared to the store average. Additionally, the customer has a high order frequency but is shipping to a different country, which raises concerns about legitimacy.
+----------------------------------------
+🔍 PINECONE CONTEXT:
+   Matches:  0 similar patterns found
+   Context:  No similar patterns found in history
+----------------------------------------
+📋 RULE SCORING (Backup):
+   Score:    36/100
+   Level:    LOW
+   Decision: ALLOW
+   • Disposable or suspicious email (+25)
+   • High order velocity from same customer (+25)
+   • Billing and shipping country mismatch (+20)
+   • No phone number provided (+10)
+   • Order value far above store average (+7)
+----------------------------------------
+📊 SIGNALS:
+{
+    "order_id": 51,
+    "order_total": 941,
+    "payment_method": "bacs",
+    "date_created": "2026-06-20 12:44:38",
+    "customer_email": "xhj29kdmsomething@tempmail.com",
+    "customer_ip": "::1",
+    "billing_country": "US",
+    "shipping_country": "GB",
+    "billing_phone": "",
+    "card_testing_pattern": false,
+    "disposable_email": true,
+    "high_velocity": true,
+    "address_mismatch": true,
+    "freight_forwarder": false,
+    "chargeback_history": false,
+    "first_order_high_value": false,
+    "ip_proxy_vpn": false,
+    "risky_country_combo": false,
+    "mismatched_names": false,
+    "no_phone_number": true,
+    "payment_method_risk": false,
+    "multiple_addresses": false,
+    "order_total_anomaly": true,
+    "odd_hours": false,
+    "guest_checkout": false,
+    "new_account": false,
+    "is_new_customer": false,
+    "previous_order_count": 10,
+    "store_average": 237.4,
+    "has_phone": false
+}
+
+========================================
+2026-06-20 12:59:00 - Order #52
+========================================
+🤖 AI SCORING (OPENAI):
+   Score:    85/100
+   Level:    HIGH
+   Decision: BLOCK
+   Reason:   The order has multiple red flags including a disposable email, an address mismatch between billing and shipping countries, a high total significantly above the store average, and a historical fraud pattern similarity score of 0.801, indicating a classic stolen card pattern.
+----------------------------------------
+🔍 PINECONE CONTEXT:
+   Matches:  5 similar patterns found
+   Context:  Similar fraud pattern found: card_fraud (similarity: 0.801, seen 1250 times, confidence: 0.97). Pattern description: Classic stolen card pattern — disposable email, different billing and shipping countries, high value first order, no phone, cash on delivery
+----------------------------------------
+📋 RULE SCORING (Backup):
+   Score:    40/100
+   Level:    MEDIUM
+   Decision: REVIEW
+   • Disposable or suspicious email (+25)
+   • High order velocity from same customer (+25)
+   • Billing and shipping country mismatch (+20)
+   • No phone number provided (+10)
+   • Risky payment method used (+8)
+   • Order value far above store average (+7)
+----------------------------------------
+📊 SIGNALS:
+{
+    "order_id": 52,
+    "order_total": 1475,
+    "payment_method": "cod",
+    "date_created": "2026-06-20 12:57:58",
+    "customer_email": "xhj29kdmsomething@tempmail.com",
+    "customer_ip": "::1",
+    "billing_country": "US",
+    "shipping_country": "GB",
+    "billing_phone": "",
+    "card_testing_pattern": false,
+    "disposable_email": true,
+    "high_velocity": true,
+    "address_mismatch": true,
+    "freight_forwarder": false,
+    "chargeback_history": false,
+    "first_order_high_value": false,
+    "ip_proxy_vpn": false,
+    "risky_country_combo": false,
+    "mismatched_names": false,
+    "no_phone_number": true,
+    "payment_method_risk": true,
+    "multiple_addresses": false,
+    "order_total_anomaly": true,
+    "odd_hours": false,
+    "guest_checkout": false,
+    "new_account": false,
+    "is_new_customer": false,
+    "previous_order_count": 11,
+    "store_average": "237.4",
+    "has_phone": false
+}
+

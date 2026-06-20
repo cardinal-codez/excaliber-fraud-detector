@@ -66,11 +66,9 @@ class AIFD_Pinecone {
      * Query Pinecone for similar patterns
      * Query vector — now supports namespace and filtering by metadata.
      */
-    public function query( $vector, $top_k = 5, $filter = array(), $namespace = '' ) {
+   public function query( $vector, $top_k = 5, $namespace = '' ) {
 
-        if ( ! $this->is_configured() ) {
-            return array();
-        }
+        if ( ! $this->is_configured() ) return array();
 
         $body = array(
             'vector'          => $vector,
@@ -78,9 +76,6 @@ class AIFD_Pinecone {
             'includeMetadata' => true,
         );
 
-        if ( ! empty( $filter ) ) {
-            $body['filter'] = $filter;
-        }
         if ( ! empty( $namespace ) ) {
             $body['namespace'] = $namespace;
         }
@@ -95,12 +90,16 @@ class AIFD_Pinecone {
         ));
 
         if ( is_wp_error( $response ) ) {
-            error_log( 'Pinecone query error: ' . $response->get_error_message() );
+            error_log( 'AIFD DEBUG: Pinecone query WP_Error — ' . $response->get_error_message() );
             return array();
         }
 
-        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        $status = wp_remote_retrieve_response_code( $response );
+        $body_raw = wp_remote_retrieve_body( $response );
+        error_log( 'AIFD DEBUG: Pinecone HTTP status = ' . $status );
+        error_log( 'AIFD DEBUG: Pinecone raw response = ' . substr( $body_raw, 0, 500 ) );
 
+        $data = json_decode( $body_raw, true );
         return $data['matches'] ?? array();
 
     }
@@ -110,24 +109,36 @@ class AIFD_Pinecone {
      */
     public function search_similar_patterns( $signals, $top_k = 5 ) {
 
-        if ( ! $this->is_configured() ) return array();
+        if ( ! $this->is_configured() ) {
+            error_log( 'AIFD DEBUG: Pinecone not configured' );
+            return array();
+        }
 
         $pattern_text = $this->build_pattern_text( $signals );
-        if ( empty( $pattern_text ) ) return array();
+        error_log( 'AIFD DEBUG: Pattern text = ' . $pattern_text );
 
-        // Use provider-specific embedding
+        if ( empty( $pattern_text ) ) {
+            error_log( 'AIFD DEBUG: Pattern text empty — no signals fired' );
+            return array();
+        }
+
         $provider  = get_option( 'aifd_ai_provider', 'openai' );
         $embedding = $this->embeddings->embed( $pattern_text, $provider );
 
         if ( ! $embedding ) {
-            error_log( 'AIFD Pinecone: embedding failed for pattern search' );
+            error_log( 'AIFD DEBUG: Embedding FAILED for provider ' . $provider );
             return array();
         }
 
-        // Use provider-specific namespace
-        $namespace = $this->embeddings->get_namespace($provider);
+        error_log( 'AIFD DEBUG: Embedding success, length = ' . count( $embedding ) );
 
-        return $this->query( $embedding, $top_k, $namespace );
+        $namespace = $this->embeddings->get_namespace( $provider );
+        error_log( 'AIFD DEBUG: Searching namespace = ' . $namespace );
+
+        $matches = $this->query( $embedding, $top_k, $namespace );
+        error_log( 'AIFD DEBUG: Matches found = ' . count( $matches ) );
+
+        return $matches;
 
     }
 
