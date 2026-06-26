@@ -42,3 +42,4 @@ require_once AIFD_PATH . 'includes/settings-page.php';
 require_once AIFD_PATH . 'includes/class-embeddings.php';
 require_once AIFD_PATH . 'includes/class-pinecone.php';
 require_once AIFD_PATH . 'includes/class-seed-loader.php';
+require_once AIFD_PATH . 'includes/class-function-calling.php';

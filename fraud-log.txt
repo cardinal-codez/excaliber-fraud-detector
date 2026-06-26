@@ -1,184 +1,19 @@
 ========================================
-2026-05-25 17:27:32 - Order #45
+2026-06-26 21:29:30 - Order #54
 ========================================
-🤖 AI SCORING (OpenAI):
-   Score:    85/100
-   Level:    HIGH
-   Decision: BLOCK
-   Reason:   The order has a high total value and displays address mismatch, suspicious email, and lacks a phone number, indicating a high potential for fraud.
-   Source:   openai
-----------------------------------------
-📋 RULE SCORING (Backup):
-   Score:    /100
-   Level:    
-   Decision: 
-----------------------------------------
-📊 SIGNALS:
-{
-    "order_id": 45,
-    "order_total": "1205.00",
-    "payment_method": "bacs",
-    "date_created": "2026-05-25 17:26:43",
-    "customer_email": "xhj29kdmsomething@tempmail.com",
-    "customer_ip": "::1",
-    "is_guest": false,
-    "is_new_customer": false,
-    "previous_order_count": 5,
-    "billing_country": "US",
-    "billing_phone": "",
-    "shipping_country": "GB",
-    "address_mismatch": true,
-    "is_odd_hours": false,
-    "is_high_value": true,
-    "has_phone": false,
-    "suspicious_email": true
-}
-
-========================================
-2026-05-25 17:28:15 - Order #46
-========================================
-🤖 AI SCORING (OpenAI):
-   Score:    80/100
-   Level:    HIGH
-   Decision: BLOCK
-   Reason:   The order is flagged due to a suspicious email address, indicating potential fraudulent activity.
-   Source:   openai
-----------------------------------------
-📋 RULE SCORING (Backup):
-   Score:    /100
-   Level:    
-   Decision: 
-----------------------------------------
-📊 SIGNALS:
-{
-    "order_id": 46,
-    "order_total": "17.00",
-    "payment_method": "bacs",
-    "date_created": "2026-05-25 17:28:06",
-    "customer_email": "xhj29kdmsomething@tempmail.com",
-    "customer_ip": "::1",
-    "is_guest": false,
-    "is_new_customer": false,
-    "previous_order_count": 6,
-    "billing_country": "GB",
-    "billing_phone": "",
-    "shipping_country": "GB",
-    "address_mismatch": false,
-    "is_odd_hours": false,
-    "is_high_value": false,
-    "has_phone": false,
-    "suspicious_email": true
-}
-
-========================================
-2026-05-27 08:56:19 - Order #47
-========================================
-🤖 AI SCORING (OpenAI):
-   Score:    85/100
-   Level:    HIGH
-   Decision: BLOCK
-   Reason:   The order has a significant address mismatch, a suspicious email, and is a high-value order being paid via cash on delivery, which increases the likelihood of fraud.
-   Source:   openai
-----------------------------------------
-📋 RULE SCORING (Backup):
-   Score:    70/100
-   Level:    HIGH
-   Decision: BLOCK
-   • Billing and shipping country mismatch (+30)
-   • High value order over $500 (+20)
-   • Suspicious email pattern (+10)
-   • No phone number provided (+10)
-----------------------------------------
-📊 SIGNALS:
-{
-    "order_id": 47,
-    "order_total": "774.00",
-    "payment_method": "cod",
-    "date_created": "2026-05-27 08:55:20",
-    "customer_email": "xhj29kdmsomething@tempmail.com",
-    "customer_ip": "::1",
-    "is_guest": false,
-    "is_new_customer": false,
-    "previous_order_count": 7,
-    "billing_country": "GB",
-    "billing_phone": "",
-    "shipping_country": "US",
-    "address_mismatch": true,
-    "is_odd_hours": false,
-    "is_high_value": true,
-    "has_phone": false,
-    "suspicious_email": true
-}
-
-========================================
-2026-06-20 12:49:08 - Order #51
-========================================
-🤖 AI SCORING (OPENAI):
-   Score:    75/100
-   Level:    HIGH
-   Decision: BLOCK
-   Reason:   The order shows multiple red flags including a high total, an address mismatch, a disposable email, and an order total anomaly compared to the store average. Additionally, the customer has a high order frequency but is shipping to a different country, which raises concerns about legitimacy.
+🤖 AI SCORING (OPENAI_FUNCTION_CALLING):
+   Score:    50/100
+   Level:    MEDIUM
+   Decision: REVIEW
+   Reason:   The order has several risk factors including a disposable email, a mismatch between billing and shipping countries, and a high order total significantly above the store average. Additionally, this order matches a historical pattern of card fraud with a high similarity score of 0.801. Although there was no velocity risk detected, this order's overall profile is highly suspicious.
+   Breakdown:
+     Signal score:    40
+     Pattern boost:   +10
+     Velocity boost:  +0
 ----------------------------------------
 🔍 PINECONE CONTEXT:
    Matches:  0 similar patterns found
-   Context:  No similar patterns found in history
-----------------------------------------
-📋 RULE SCORING (Backup):
-   Score:    36/100
-   Level:    LOW
-   Decision: ALLOW
-   • Disposable or suspicious email (+25)
-   • High order velocity from same customer (+25)
-   • Billing and shipping country mismatch (+20)
-   • No phone number provided (+10)
-   • Order value far above store average (+7)
-----------------------------------------
-📊 SIGNALS:
-{
-    "order_id": 51,
-    "order_total": 941,
-    "payment_method": "bacs",
-    "date_created": "2026-06-20 12:44:38",
-    "customer_email": "xhj29kdmsomething@tempmail.com",
-    "customer_ip": "::1",
-    "billing_country": "US",
-    "shipping_country": "GB",
-    "billing_phone": "",
-    "card_testing_pattern": false,
-    "disposable_email": true,
-    "high_velocity": true,
-    "address_mismatch": true,
-    "freight_forwarder": false,
-    "chargeback_history": false,
-    "first_order_high_value": false,
-    "ip_proxy_vpn": false,
-    "risky_country_combo": false,
-    "mismatched_names": false,
-    "no_phone_number": true,
-    "payment_method_risk": false,
-    "multiple_addresses": false,
-    "order_total_anomaly": true,
-    "odd_hours": false,
-    "guest_checkout": false,
-    "new_account": false,
-    "is_new_customer": false,
-    "previous_order_count": 10,
-    "store_average": 237.4,
-    "has_phone": false
-}
-
-========================================
-2026-06-20 12:59:00 - Order #52
-========================================
-🤖 AI SCORING (OPENAI):
-   Score:    85/100
-   Level:    HIGH
-   Decision: BLOCK
-   Reason:   The order has multiple red flags including a disposable email, an address mismatch between billing and shipping countries, a high total significantly above the store average, and a historical fraud pattern similarity score of 0.801, indicating a classic stolen card pattern.
-----------------------------------------
-🔍 PINECONE CONTEXT:
-   Matches:  5 similar patterns found
-   Context:  Similar fraud pattern found: card_fraud (similarity: 0.801, seen 1250 times, confidence: 0.97). Pattern description: Classic stolen card pattern — disposable email, different billing and shipping countries, high value first order, no phone, cash on delivery
+   Context:  None
 ----------------------------------------
 📋 RULE SCORING (Backup):
    Score:    40/100
@@ -193,10 +28,10 @@
 ----------------------------------------
 📊 SIGNALS:
 {
-    "order_id": 52,
-    "order_total": 1475,
+    "order_id": 54,
+    "order_total": 2489,
     "payment_method": "cod",
-    "date_created": "2026-06-20 12:57:58",
+    "date_created": "2026-06-26 21:28:47",
     "customer_email": "xhj29kdmsomething@tempmail.com",
     "customer_ip": "::1",
     "billing_country": "US",
@@ -220,7 +55,60 @@
     "guest_checkout": false,
     "new_account": false,
     "is_new_customer": false,
-    "previous_order_count": 11,
+    "previous_order_count": 13,
+    "store_average": "237.4",
+    "has_phone": false
+}
+
+========================================
+2026-06-26 21:40:38 - Order #55
+========================================
+🤖 AI SCORING (OPENAI_FUNCTION_CALLING):
+   Score:    100/100
+   Level:    HIGH
+   Decision: BLOCK
+   Reason:   The order has a medium risk score of 52, with multiple signals indicating potential fraud: detected patterns of card testing, use of a disposable email, and a high frequency of orders from the same customer within 60 minutes. Additionally, there is a mismatch between the billing and shipping addresses, no phone number provided, and a payment method that is considered risky. The order total is significantly higher than the store average. The search identified this type of order as related to card testing with a high confidence level of 0.98.
+   Breakdown:
+     Raw signal score:   52/100
+     Calibrated signal:  80/100
+     Pattern boost:      +10
+     Velocity boost:     +10
+----------------------------------------
+🔍 PINECONE CONTEXT:
+   Status:   Searched via function calling agent ✅
+   Boost:    +10 points from pattern match
+----------------------------------------
+----------------------------------------
+📊 SIGNALS:
+{
+    "order_id": 55,
+    "order_total": 1569,
+    "payment_method": "cod",
+    "date_created": "2026-06-26 21:39:59",
+    "customer_email": "xhj29kdmsomething@tempmail.com",
+    "customer_ip": "::1",
+    "billing_country": "US",
+    "shipping_country": "GB",
+    "billing_phone": "",
+    "card_testing_pattern": true,
+    "disposable_email": true,
+    "high_velocity": true,
+    "address_mismatch": true,
+    "freight_forwarder": false,
+    "chargeback_history": false,
+    "first_order_high_value": false,
+    "ip_proxy_vpn": false,
+    "risky_country_combo": false,
+    "mismatched_names": false,
+    "no_phone_number": true,
+    "payment_method_risk": true,
+    "multiple_addresses": false,
+    "order_total_anomaly": true,
+    "odd_hours": false,
+    "guest_checkout": false,
+    "new_account": false,
+    "is_new_customer": false,
+    "previous_order_count": 14,
     "store_average": "237.4",
     "has_phone": false
 }

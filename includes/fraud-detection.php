@@ -459,13 +459,27 @@ function aifd_call_provider( $signals ) {
 
     $provider_name = get_option( 'aifd_ai_provider', 'openai' );
 
+    // Use function calling for OpenAI and Anthropic
+    if ( in_array( $provider_name, array( 'openai', 'anthropic' ) ) ) {
+
+        $agent = new AIFD_FunctionCalling( $signals );
+
+        $result = ( $provider === 'anthropic' )
+            ? $agent->run_anthropic()
+            : $agent->run_openai();
+
+        return $result;
+
+    }
+
     // Search Pinecone (namespace + provider-native embedding handled internally)
     $pinecone_context = aifd_get_pinecone_context( $signals );
 
     // Build prompt with Pinecone context included
+    // Gemini and Ollama use prompt-based approach (no function calling yet)
     $prompt = aifd_build_prompt( $signals, $pinecone_context );
 
-    switch ( $provider_name ) {
+    /*switch ( $provider_name ) {
         case 'anthropic':
             $provider = new AIFD_Provider_Anthropic();
             break;
@@ -478,6 +492,15 @@ function aifd_call_provider( $signals ) {
         case 'openai':
         default:
             $provider = new AIFD_Provider_OpenAI();
+            break;
+    }*/
+     switch ( $provider ) {
+        case 'gemini':
+            $p = new AIFD_Provider_Gemini();
+            break;
+        case 'ollama':
+        default:
+            $p = new AIFD_Provider_Ollama();
             break;
     }
 
@@ -797,6 +820,7 @@ function aifd_get_pinecone_context( $signals ) {
 // ══════════════════════════════════════════════════════
 
 function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result ) {
+    write_log( "Logging order #$order_id with AI result: " . json_encode( $ai_result ) );
 
     $log_file = AIFD_PATH . 'fraud-log.txt';
 
@@ -808,19 +832,37 @@ function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result )
     $log_entry .= "   Level:    " . $ai_result['risk_level'] . "\n";
     $log_entry .= "   Decision: " . $ai_result['decision'] . "\n";
     $log_entry .= "   Reason:   " . $ai_result['reason'] . "\n";
-    $log_entry .= "----------------------------------------\n";
-    $log_entry .= "🔍 PINECONE CONTEXT:\n";
-    $log_entry .= "   Matches:  " . ( $ai_result['pinecone_matches'] ?? 0 ) . " similar patterns found\n";
-    $log_entry .= "   Context:  " . ( $ai_result['pinecone_context'] ?? 'None' ) . "\n";
-    $log_entry .= "----------------------------------------\n";
-        $log_entry .= "📋 RULE SCORING (Backup):\n";
-    $log_entry .= "   Score:    " . $rule_result['risk_score'] . "/100\n";
-    $log_entry .= "   Level:    " . $rule_result['risk_level'] . "\n";
-    $log_entry .= "   Decision: " . $rule_result['decision'] . "\n";
 
-    foreach ( $rule_result['reasons'] as $reason ) {
-        $log_entry .= "   • " . $reason . "\n";
+    // Show function calling bonuses if available
+    if ( isset( $ai_result['pattern_boost'] ) ) {
+        $log_entry .= "   Breakdown:\n";
+        $log_entry .= "     Raw signal score:   " . ( $ai_result['signal_score']      ?? 0 ) . "/100\n";
+        $log_entry .= "     Calibrated signal:  " . ( $ai_result['calibrated_signal'] ?? 0 ) . "/100\n";
+        $log_entry .= "     Pattern boost:      +" . ( $ai_result['pattern_boost']    ?? 0 ) . "\n";
+        $log_entry .= "     Velocity boost:     +" . ( $ai_result['velocity_boost']   ?? 0 ) . "\n";
     }
+    $log_entry .= "----------------------------------------\n";
+    // Replace the PINECONE CONTEXT section with this:
+    $log_entry .= "🔍 PINECONE CONTEXT:\n";
+
+    // Function calling handles Pinecone internally
+    if ( isset( $ai_result['pattern_boost'] ) ) {
+        $boost = (int) ( $ai_result['pattern_boost'] ?? 0 );
+        if ( $boost > 0 ) {
+            $log_entry .= "   Status:   Searched via function calling agent ✅\n";
+            $log_entry .= "   Boost:    +" . $boost . " points from pattern match\n";
+        } else {
+            $log_entry .= "   Status:   Searched via function calling — no strong match\n";
+        }
+    } elseif ( isset( $ai_result['pinecone_matches'] ) ) {
+        // Old non-function-calling path
+        $log_entry .= "   Matches:  " . $ai_result['pinecone_matches'] . " similar patterns found\n";
+        $log_entry .= "   Context:  " . ( $ai_result['pinecone_context'] ?? 'None' ) . "\n";
+    } else {
+        $log_entry .= "   Status:   Not searched\n";
+    }
+
+    $log_entry .= "----------------------------------------\n";
 
     $log_entry .= "----------------------------------------\n";
     $log_entry .= "📊 SIGNALS:\n";
