@@ -30,6 +30,19 @@ function aifd_register_rest_routes() {
         'permission_callback' => 'aifd_check_permission'
     ));
 
+    // Feedback loop endpoints
+    register_rest_route( 'aifd/v1', '/order/(?P<id>\d+)/confirm-fraud', array(
+        'methods'             => 'POST',
+        'callback'            => 'aifd_confirm_fraud',
+        'permission_callback' => 'aifd_check_permission',
+    ));
+
+    register_rest_route( 'aifd/v1', '/order/(?P<id>\d+)/override', array(
+        'methods'             => 'POST',
+        'callback'            => 'aifd_override_fraud',
+        'permission_callback' => 'aifd_check_permission',
+    ));
+
 }
 
 function aifd_ajax_load_seeds() {
@@ -67,6 +80,8 @@ function aifd_get_stats() {
         'review'  => (int) get_option( 'aifd_total_review', 0 ),
         'allowed' => (int) get_option( 'aifd_total_allowed', 0 ),
         'saved'   => (float) get_option( 'aifd_total_saved', 0 ),
+        'confirmed_fraud'  => (int) get_option( 'aifd_total_confirmed_fraud', 0 ),
+        'false_positives'  => (int) get_option( 'aifd_total_false_positives', 0 ),
     ));
 }
 
@@ -89,6 +104,7 @@ function aifd_get_flagged_orders() {
         $score    = $order->get_meta( '_aifd_risk_score' );
         $decision = $order->get_meta( '_aifd_decision' );
         $reason   = $order->get_meta( '_aifd_reason' );
+        $review_status = $order->get_meta( '_aifd_review_status' ) ?: 'PENDING';
 
         // Only include orders that were scored by our plugin
         if ( empty( $score ) ) continue;
@@ -105,6 +121,7 @@ function aifd_get_flagged_orders() {
             'risk_score'       => (int) $score,
             'decision'         => $decision,
             'reason'           => $reason,
+            'review_status'    => $review_status,
             'date'             => $order->get_date_created()->date( 'Y-m-d H:i' ),
         );
     }
@@ -137,6 +154,106 @@ function aifd_order_action( $request ) {
     return rest_ensure_response( array(
         'success' => true,
         'message' => 'Order ' . $action . 'd successfully',
+    ));
+
+}
+
+// Confirm fraud handler
+function aifd_confirm_fraud( $request ) {
+
+    $order_id = (int) $request->get_param( 'id' );
+    $order    = wc_get_order( $order_id );
+
+    if ( ! $order ) {
+        return new WP_Error( 'not_found', 'Order not found', array( 'status' => 404 ) );
+    }
+
+    // Update review status
+    $order->update_meta_data( '_aifd_review_status', 'CONFIRMED_FRAUD' );
+    $order->update_meta_data( '_aifd_reviewed_at', current_time( 'mysql' ) );
+    $order->update_meta_data( '_aifd_reviewed_by', get_current_user_id() );
+
+    // Keep order on hold
+    $order->add_order_note(
+        '🚨 CONFIRMED FRAUD: Manually confirmed by merchant. Pattern will be saved to fraud database.',
+        false
+    );
+
+    $order->save();
+
+    // Store confirmed pattern data for Day 20
+    $confirmed_patterns   = get_option( 'aifd_confirmed_patterns', array() );
+    $fired_signals        = $order->get_meta( '_aifd_fired_signals' );
+
+    $confirmed_patterns[] = array(
+        'order_id'     => $order_id,
+        'fired_signals'=> $fired_signals,
+        'risk_score'   => $order->get_meta( '_aifd_risk_score' ),
+        'confirmed_at' => current_time( 'mysql' ),
+    );
+
+    update_option( 'aifd_confirmed_patterns', $confirmed_patterns );
+
+    // Increment confirmed fraud counter
+    update_option(
+        'aifd_total_confirmed_fraud',
+        get_option( 'aifd_total_confirmed_fraud', 0 ) + 1
+    );
+
+    return rest_ensure_response( array(
+        'success' => true,
+        'message' => 'Order confirmed as fraud. Pattern queued for Pinecone storage.',
+        'status'  => 'CONFIRMED_FRAUD',
+    ));
+
+}
+
+// Override handler
+function aifd_override_fraud( $request ) {
+
+    $order_id = (int) $request->get_param( 'id' );
+    $order    = wc_get_order( $order_id );
+
+    if ( ! $order ) {
+        return new WP_Error( 'not_found', 'Order not found', array( 'status' => 404 ) );
+    }
+
+    // Get fired signals BEFORE we change anything
+    $fired_signals = $order->get_meta( '_aifd_fired_signals' );
+
+    // Update review status
+    $order->update_meta_data( '_aifd_review_status', 'FALSE_POSITIVE' );
+    $order->update_meta_data( '_aifd_reviewed_at', current_time( 'mysql' ) );
+    $order->update_meta_data( '_aifd_reviewed_by', get_current_user_id() );
+
+    // Release order back to processing
+    $order->update_status(
+        'processing',
+        '✅ FALSE POSITIVE: Override by merchant — order approved for processing.'
+    );
+
+    $order->add_order_note(
+        '✅ FALSE POSITIVE: Merchant confirmed this is a legitimate order. Signal weights adjusted.',
+        false
+    );
+
+    $order->save();
+
+    // Adjust merchant weights based on fired signals
+    if ( ! empty( $fired_signals ) ) {
+        aifd_adjust_weights_on_override( $fired_signals );
+    }
+
+    // Increment false positive counter
+    update_option(
+        'aifd_total_false_positives',
+        get_option( 'aifd_total_false_positives', 0 ) + 1
+    );
+
+    return rest_ensure_response( array(
+        'success' => true,
+        'message' => 'Order approved. Signal weights adjusted to reduce false positives.',
+        'status'  => 'FALSE_POSITIVE',
     ));
 
 }
