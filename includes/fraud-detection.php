@@ -815,6 +815,119 @@ function aifd_get_pinecone_context( $signals ) {
 
 }
 
+/**
+ * Save confirmed fraud pattern to Pinecone
+ */
+function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
+
+    $order    = wc_get_order( $order_id );
+    $pinecone = new AIFD_Pinecone();
+
+    if ( ! $pinecone->is_configured() ) {
+        error_log( 'AIFD: Pinecone not configured — skipping pattern save' );
+        return false;
+    }
+
+    // Get signals that fired on this order
+    $fired_signals = $order->get_meta( '_aifd_fired_signals' );
+    $risk_score    = $order->get_meta( '_aifd_risk_score' );
+    $reason        = $order->get_meta( '_aifd_reason' );
+    $provider      = get_option( 'aifd_ai_provider', 'openai' );
+
+    if ( empty( $fired_signals ) ) {
+        error_log( 'AIFD: No fired signals found for order #' . $order_id );
+        return false;
+    }
+
+    // Build pattern text from fired signals
+    $pattern_text = implode( ' ', $fired_signals );
+
+    // Add payment method + country context
+    $payment = $order->get_payment_method();
+    $billing = $order->get_billing_country();
+    $shipping = $order->get_shipping_country();
+
+    if ( ! empty( $payment ) ) {
+        $pattern_text .= ' ' . $payment . '_payment';
+    }
+    if ( ! empty( $billing ) && ! empty( $shipping ) ) {
+        $pattern_text .= ' ' . $billing . '_to_' . $shipping;
+    }
+
+    // Embed using provider-native model
+    $embeddings = new AIFD_Embeddings();
+    $embedding  = $embeddings->embed( $pattern_text, $provider );
+
+    if ( ! $embedding ) {
+        error_log( 'AIFD: Embedding failed for confirmed pattern — order #' . $order_id );
+        return false;
+    }
+
+    // Get merchant namespace
+    $namespace = $embeddings->get_namespace( $provider );
+
+    // Store in Pinecone with high confidence
+    $success = $pinecone->upsert(
+        'confirmed_' . $order_id . '_' . $provider,
+        $embedding,
+        array(
+            'pattern'     => $pattern_text,
+            'fraud_type'  => 'confirmed_fraud',
+            'confidence'  => 1.0,
+            'times_seen'  => 1,
+            'source'      => 'merchant_confirmed',
+            'provider'    => $provider,
+            'order_id'    => $order_id,
+            'risk_score'  => $risk_score,
+            'description' => 'Merchant confirmed fraud — order #' . $order_id . '. ' . substr( $reason ?? '', 0, 200 ),
+        ),
+        $namespace
+    );
+
+    if ( $success ) {
+        error_log( 'AIFD: Pattern saved to Pinecone for order #' . $order_id . ' in namespace ' . $namespace );
+
+        // Update times_seen for similar existing patterns
+        aifd_increment_similar_pattern_count( $order_id, $pinecone, $embedding, $namespace );
+    }
+
+    return $success;
+
+}
+
+/**
+ * Increment times_seen for similar existing patterns
+ * Makes the vector store smarter over time
+ */
+function aifd_increment_similar_pattern_count( $order_id, $pinecone, $embedding, $namespace ) {
+
+    // Find the closest existing pattern
+    $matches = $pinecone->query( $embedding, 1, $namespace );
+
+    if ( empty( $matches ) ) return;
+
+    $top_match = $matches[0];
+    $similarity = $top_match['score'] ?? 0;
+
+    // Only update if very similar (>0.90) and not the pattern we just saved
+    if ( $similarity < 0.90 ) return;
+    if ( strpos( $top_match['id'], 'confirmed_' . $order_id ) !== false ) return;
+
+    $metadata = $top_match['metadata'] ?? array();
+    $times_seen = (int) ( $metadata['times_seen'] ?? 1 );
+
+    // Re-upsert with incremented times_seen
+    $pinecone->upsert(
+        $top_match['id'],
+        $top_match['values'] ?? $embedding, // use original vector if available
+        array_merge( $metadata, array(
+            'times_seen' => $times_seen + 1,
+        )),
+        $namespace
+    );
+
+}
+
 // ══════════════════════════════════════════════════════
 // LOGGING
 // ══════════════════════════════════════════════════════

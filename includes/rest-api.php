@@ -172,14 +172,23 @@ function aifd_confirm_fraud( $request ) {
     $order->update_meta_data( '_aifd_review_status', 'CONFIRMED_FRAUD' );
     $order->update_meta_data( '_aifd_reviewed_at', current_time( 'mysql' ) );
     $order->update_meta_data( '_aifd_reviewed_by', get_current_user_id() );
+    $order->save();
 
-    // Keep order on hold
+    // Save pattern to Pinecone
+    $saved = aifd_save_confirmed_pattern_to_pinecone( $order_id );
+
+    // Add order note
+    $pinecone_note = $saved
+        ? 'Pattern saved to Pinecone vector store — system will recognize this fraud type faster next time.'
+        : 'Note: Pinecone save failed — check API key and configuration.';
+
     $order->add_order_note(
-        '🚨 CONFIRMED FRAUD: Manually confirmed by merchant. Pattern will be saved to fraud database.',
+        '🚨 CONFIRMED FRAUD: Manually confirmed by merchant. ' . $pinecone_note,
         false
     );
-
     $order->save();
+
+    
 
     // Store confirmed pattern data for Day 20
     $confirmed_patterns   = get_option( 'aifd_confirmed_patterns', array() );
@@ -189,6 +198,7 @@ function aifd_confirm_fraud( $request ) {
         'order_id'     => $order_id,
         'fired_signals'=> $fired_signals,
         'risk_score'   => $order->get_meta( '_aifd_risk_score' ),
+        'pattern_text'  => implode( ' ', (array) $fired_signals ),
         'confirmed_at' => current_time( 'mysql' ),
     );
 
@@ -201,9 +211,12 @@ function aifd_confirm_fraud( $request ) {
     );
 
     return rest_ensure_response( array(
-        'success' => true,
-        'message' => 'Order confirmed as fraud. Pattern queued for Pinecone storage.',
-        'status'  => 'CONFIRMED_FRAUD',
+        'success'         => true,
+        'message'         => $saved
+            ? 'Confirmed as fraud. Pattern saved to Pinecone — AI will recognize this faster next time.'
+            : 'Confirmed as fraud. Note: Pinecone save failed — check your API configuration.',
+        'status'          => 'CONFIRMED_FRAUD',
+        'pinecone_saved'  => $saved,
     ));
 
 }
