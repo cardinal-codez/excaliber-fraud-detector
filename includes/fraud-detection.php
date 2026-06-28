@@ -616,17 +616,28 @@ Decisions: ALLOW, REVIEW, BLOCK";
 
 function aifd_adjust_weights_on_override( $fired_signals ) {
 
-    $weights = aifd_get_signal_weights();
-    $delta   = 0.02;
-    $floor   = 0.01;
+    $weights  = aifd_get_signal_weights();
+    $delta    = 0.02;
+    $floor    = 0.01;
+
+    // Track override counts per signal
+    $override_counts = get_option( 'aifd_signal_override_counts', array() );
 
     foreach ( $fired_signals as $signal ) {
         if ( isset( $weights[ $signal ] ) ) {
+
+            // Reduce weight
             $weights[ $signal ] = max( $floor, $weights[ $signal ] - $delta );
+
+            // Increment override count for this signal
+            $override_counts[ $signal ] = ( $override_counts[ $signal ] ?? 0 ) + 1;
         }
     }
 
     update_option( 'aifd_merchant_weights', $weights );
+    update_option( 'aifd_signal_override_counts', $override_counts );
+
+    error_log( 'AIFD: Weights adjusted for signals: ' . implode( ', ', $fired_signals ) );
 
 }
 

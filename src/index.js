@@ -1,6 +1,7 @@
 import { render, useState, useEffect } from '@wordpress/element';
 import { Spinner } from '@wordpress/components';
 
+
 // ── API Helper ─────────────────────────────────
 const api = {
     get: ( endpoint ) => fetch( `${aifdData.apiUrl}${endpoint}`, {
@@ -155,6 +156,189 @@ const FeedbackButtons = ({ order, onAction }) => {
     );
 };
 
+const WeightsPanel = ({ weights, onReset, resetting }) => {
+
+    const tierColors = { 1: '#ef4444', 2: '#f59e0b', 3: '#6366f1' };
+    const tierLabels = { 1: 'Tier 1 — Critical', 2: 'Tier 2 — Strong', 3: 'Tier 3 — Contextual' };
+
+    const signalLabels = {
+        card_testing_pattern:   'Card Testing Pattern',
+        disposable_email:       'Disposable Email',
+        high_velocity:          'High Velocity',
+        address_mismatch:       'Address Mismatch',
+        freight_forwarder:      'Freight Forwarder',
+        chargeback_history:     'Chargeback History',
+        first_order_high_value: 'First Order High Value',
+        ip_proxy_vpn:           'IP Proxy / VPN',
+        risky_country_combo:    'Risky Country Combo',
+        mismatched_names:       'Mismatched Names',
+        no_phone_number:        'No Phone Number',
+        payment_method_risk:    'Payment Method Risk',
+        multiple_addresses:     'Multiple Addresses',
+        order_total_anomaly:    'Order Total Anomaly',
+        odd_hours:              'Odd Hours',
+        guest_checkout:         'Guest Checkout',
+        new_account:            'New Account',
+    };
+
+    const tiers = [1, 2, 3];
+
+    return (
+        <div>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div>
+                    <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
+                        Signal Weight Personalization
+                    </h2>
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
+                        {weights.calibration} · {weights.false_positives} overrides recorded
+                    </p>
+                </div>
+                <button onClick={onReset} disabled={resetting} style={{
+                    padding: '8px 14px', borderRadius: '8px',
+                    fontSize: '12px', fontWeight: '500',
+                    cursor: resetting ? 'not-allowed' : 'pointer',
+                    border: '1px solid #e2e8f0',
+                    background: '#fff', color: '#64748b',
+                    opacity: resetting ? 0.6 : 1,
+                }}>
+                    {resetting ? '⏳ Resetting...' : '↺ Reset to Defaults'}
+                </button>
+            </div>
+
+            {/* Personalization status */}
+            <div style={{
+                padding: '12px 16px', marginBottom: '20px',
+                background: weights.personalized ? '#eff6ff' : '#f8fafc',
+                border: `1px solid ${weights.personalized ? '#bfdbfe' : '#e2e8f0'}`,
+                borderRadius: '10px', fontSize: '13px',
+                color: weights.personalized ? '#1d4ed8' : '#64748b',
+            }}>
+                {weights.personalized
+                    ? `✅ Your signal weights have been personalized based on ${weights.false_positives} false positive override${weights.false_positives !== 1 ? 's' : ''}. The system is learning your store's patterns.`
+                    : '⚖️ Using global default weights. Signal weights will personalize automatically as you approve or override flagged orders.'
+                }
+            </div>
+
+            {/* Weights by tier */}
+            {tiers.map( tier => {
+                const tierWeights = weights.weights.filter( w => w.tier === tier );
+                const color = tierColors[tier];
+
+                return (
+                    <div key={tier} style={{ marginBottom: '20px' }}>
+                        <div style={{
+                            fontSize: '11px', fontWeight: '600',
+                            color, textTransform: 'uppercase',
+                            letterSpacing: '.06em', marginBottom: '8px',
+                            display: 'flex', alignItems: 'center', gap: '8px'
+                        }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                            {tierLabels[tier]}
+                        </div>
+
+                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
+                            {tierWeights.map( ( w, i ) => (
+                                <div key={w.signal} style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '200px 1fr 80px 100px 120px',
+                                    padding: '10px 16px',
+                                    borderBottom: i < tierWeights.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                }}>
+                                    {/* Signal name */}
+                                    <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: '500' }}>
+                                        {signalLabels[w.signal] || w.signal}
+                                    </div>
+
+                                    {/* Weight bar */}
+                                    <div style={{ position: 'relative' }}>
+                                        {/* Default weight marker */}
+                                        <div style={{
+                                            position: 'absolute',
+                                            left: `${w.default_weight * 100 / 0.30 * 100}%`,
+                                            top: '-4px', bottom: '-4px',
+                                            width: '1px',
+                                            background: '#cbd5e1',
+                                        }} />
+                                        {/* Current weight bar */}
+                                        <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '4px' }}>
+                                            <div style={{
+                                                height: '8px', borderRadius: '4px',
+                                                width: `${w.current_weight / 0.30 * 100}%`,
+                                                background: w.reduced ? '#f59e0b' : color,
+                                                transition: 'width 0.3s',
+                                            }} />
+                                        </div>
+                                    </div>
+
+                                    {/* Current weight value */}
+                                    <div style={{
+                                        fontFamily: 'monospace', fontSize: '12px',
+                                        color: w.reduced ? '#f59e0b' : '#475569',
+                                        fontWeight: '600', textAlign: 'right'
+                                    }}>
+                                        {w.current_weight.toFixed(3)}
+                                    </div>
+
+                                    {/* Reduction badge */}
+                                    <div style={{ textAlign: 'center' }}>
+                                        {w.reduced ? (
+                                            <span style={{
+                                                padding: '2px 8px', borderRadius: '20px',
+                                                fontSize: '11px', fontWeight: '600',
+                                                background: '#fffbeb', color: '#d97706',
+                                                border: '1px solid #fde68a',
+                                            }}>
+                                                -{w.reduction}% reduced
+                                            </span>
+                                        ) : (
+                                            <span style={{
+                                                padding: '2px 8px', borderRadius: '20px',
+                                                fontSize: '11px', color: '#94a3b8',
+                                                background: '#f8fafc', border: '1px solid #e2e8f0',
+                                            }}>
+                                                default
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Override count */}
+                                    <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'right' }}>
+                                        {w.times_overridden > 0
+                                            ? `${w.times_overridden} override${w.times_overridden !== 1 ? 's' : ''}`
+                                            : '—'
+                                        }
+                                    </div>
+
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            })}
+
+            {/* Explanation */}
+            <div style={{
+                padding: '12px 16px', marginTop: '8px',
+                background: '#f8fafc', border: '1px solid #e2e8f0',
+                borderRadius: '10px', fontSize: '12px', color: '#64748b',
+                lineHeight: '1.6'
+            }}>
+                <strong style={{ color: '#475569' }}>How personalization works:</strong>
+                {' '}When you mark a blocked order as "Not Fraud", the signals that triggered that block
+                are slightly reduced (-0.02 per override, minimum 0.01).
+                After 10+ overrides, your weights are calibrated to your store's specific patterns.
+                <strong style={{ color: '#f59e0b' }}> Yellow bars</strong> show signals that have been reduced.
+            </div>
+
+        </div>
+    );
+};
+
 // ── Main Dashboard ─────────────────────────────
 const FraudDashboard = () => {
 
@@ -163,8 +347,14 @@ const FraudDashboard = () => {
     const [loading, setLoading] = useState( true );
     const [filter, setFilter]   = useState( 'ALL' );
     const [selected, setSelected] = useState( null );
+    const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'weights'
+    const [weights, setWeights]     = useState( null );
+    const [resetting, setResetting] = useState( false );
 
-    useEffect( () => { fetchData(); }, [] );
+    useEffect( () => { 
+        fetchData(); 
+        fetchWeights();
+    }, [] );
 
     const fetchData = async () => {
         setLoading( true );
@@ -179,6 +369,15 @@ const FraudDashboard = () => {
             console.error( 'Failed to fetch', e );
         }
         setLoading( false );
+    };
+
+    const fetchWeights = async () => {
+        try {
+            const w = await api.get('weights');
+            setWeights(w);
+        } catch(e) {
+            console.error('Failed to fetch weights', e);
+        }
     };
 
     const filteredOrders = orders.filter( o => {
@@ -222,6 +421,27 @@ const FraudDashboard = () => {
                 </div>
             </div>
 
+            {/* Tab Navigation */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '0' }}>
+                {[
+                    { id: 'orders',  label: '🛡️ Orders' },
+                    { id: 'weights', label: '⚖️ Signal Weights' },
+                ].map( tab => (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                        padding: '8px 16px',
+                        borderRadius: '8px 8px 0 0',
+                        fontSize: '13px', fontWeight: '500',
+                        cursor: 'pointer',
+                        border: 'none',
+                        borderBottom: activeTab === tab.id ? '2px solid #3b82f6' : '2px solid transparent',
+                        background: activeTab === tab.id ? '#eff6ff' : 'transparent',
+                        color: activeTab === tab.id ? '#3b82f6' : '#64748b',
+                    }}>
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '60px' }}><Spinner /></div>
             ) : (
@@ -261,113 +481,131 @@ const FraudDashboard = () => {
                     </div>
 
                     {/* Orders Table */}
-                    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '60px 1fr 130px 100px 90px 90px 160px',
-                            padding: '10px 16px', background: '#f8fafc',
-                            borderBottom: '1px solid #e2e8f0',
-                            fontSize: '11px', fontWeight: '600',
-                            color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em'
-                        }}>
-                            <div>Order</div>
-                            <div>Customer</div>
-                            <div>AI Score</div>
-                            <div>Decision</div>
-                            <div>Countries</div>
-                            <div>Amount</div>
-                            <div>Feedback</div>
-                        </div>
-
-                        {filteredOrders.length === 0 ? (
-                            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-                                ✅ No flagged orders — your store is safe!
-                            </div>
-                        ) : (
-                            filteredOrders.map( order => (
-                                <div key={order.id}>
-                                    <div
-                                        onClick={() => setSelected( selected === order.id ? null : order.id )}
-                                        style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '60px 1fr 130px 100px 90px 90px 160px',
-                                            padding: '12px 16px',
-                                            borderBottom: '1px solid #f1f5f9',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            background: selected === order.id ? '#f8fafc' : 'transparent',
-                                        }}
-                                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                                        onMouseLeave={e => e.currentTarget.style.background = selected === order.id ? '#f8fafc' : 'transparent'}
-                                    >
-                                        <div style={{ fontFamily: 'monospace', fontSize: '13px', color: '#3b82f6', fontWeight: '600' }}>
-                                            #{order.id}
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: '500' }}>
-                                                {order.customer_name}
-                                            </div>
-                                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                                                {order.customer_email}
-                                            </div>
-                                        </div>
-                                        <ScoreBar score={order.risk_score} />
-                                        <Badge decision={order.decision} />
-                                        <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94a3b8' }}>
-                                            {order.billing_country}→{order.shipping_country}
-                                        </div>
-                                        <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
-                                            ${order.total}
-                                        </div>
-                                        <div onClick={e => e.stopPropagation()}>
-                                            <FeedbackButtons
-                                                order={order}
-                                                onAction={fetchData}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Expanded Detail Row */}
-                                    {selected === order.id && (
-                                        <div style={{
-                                            padding: '16px',
-                                            background: '#f8fafc',
-                                            borderBottom: '1px solid #e2e8f0',
-                                        }}>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-
-                                                {/* AI Reason */}
-                                                <div>
-                                                    <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '8px' }}>
-                                                        AI Analysis
-                                                    </div>
-                                                    <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.6', padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                        {order.reason || 'No AI reason available'}
-                                                    </div>
-                                                </div>
-
-                                                {/* Review Status */}
-                                                <div>
-                                                    <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '8px' }}>
-                                                        Review Status
-                                                    </div>
-                                                    <div style={{ padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                        <ReviewBadge status={order.review_status || 'PENDING'} />
-                                                        <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#64748b' }}>
-                                                            {order.review_status === 'PENDING' && 'Awaiting your review. Confirm as fraud or mark as legitimate.'}
-                                                            {order.review_status === 'CONFIRMED_FRAUD' && 'You confirmed this as fraud. Pattern saved to Pinecone.'}
-                                                            {order.review_status === 'FALSE_POSITIVE' && 'You marked this as legitimate. Signal weights adjusted.'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                            </div>
-                                        </div>
-                                    )}
+                    {activeTab === 'orders' && (
+                        <>
+                            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '60px 1fr 130px 100px 90px 90px 160px',
+                                    padding: '10px 16px', background: '#f8fafc',
+                                    borderBottom: '1px solid #e2e8f0',
+                                    fontSize: '11px', fontWeight: '600',
+                                    color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em'
+                                }}>
+                                    <div>Order</div>
+                                    <div>Customer</div>
+                                    <div>AI Score</div>
+                                    <div>Decision</div>
+                                    <div>Countries</div>
+                                    <div>Amount</div>
+                                    <div>Feedback</div>
                                 </div>
-                            ))
-                        )}
-                    </div>
+
+                                {filteredOrders.length === 0 ? (
+                                    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+                                        ✅ No flagged orders — your store is safe!
+                                    </div>
+                                ) : (
+                                    filteredOrders.map( order => (
+                                        <div key={order.id}>
+                                            <div
+                                                onClick={() => setSelected( selected === order.id ? null : order.id )}
+                                                style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: '60px 1fr 130px 100px 90px 90px 160px',
+                                                    padding: '12px 16px',
+                                                    borderBottom: '1px solid #f1f5f9',
+                                                    alignItems: 'center',
+                                                    cursor: 'pointer',
+                                                    background: selected === order.id ? '#f8fafc' : 'transparent',
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                                onMouseLeave={e => e.currentTarget.style.background = selected === order.id ? '#f8fafc' : 'transparent'}
+                                            >
+                                                <div style={{ fontFamily: 'monospace', fontSize: '13px', color: '#3b82f6', fontWeight: '600' }}>
+                                                    #{order.id}
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: '500' }}>
+                                                        {order.customer_name}
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                                                        {order.customer_email}
+                                                    </div>
+                                                </div>
+                                                <ScoreBar score={order.risk_score} />
+                                                <Badge decision={order.decision} />
+                                                <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94a3b8' }}>
+                                                    {order.billing_country}→{order.shipping_country}
+                                                </div>
+                                                <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+                                                    ${order.total}
+                                                </div>
+                                                <div onClick={e => e.stopPropagation()}>
+                                                    <FeedbackButtons
+                                                        order={order}
+                                                        onAction={fetchData}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Expanded Detail Row */}
+                                            {selected === order.id && (
+                                                <div style={{
+                                                    padding: '16px',
+                                                    background: '#f8fafc',
+                                                    borderBottom: '1px solid #e2e8f0',
+                                                }}>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
+                                                        {/* AI Reason */}
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '8px' }}>
+                                                                AI Analysis
+                                                            </div>
+                                                            <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.6', padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                                {order.reason || 'No AI reason available'}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Review Status */}
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '8px' }}>
+                                                                Review Status
+                                                            </div>
+                                                            <div style={{ padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                                <ReviewBadge status={order.review_status || 'PENDING'} />
+                                                                <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#64748b' }}>
+                                                                    {order.review_status === 'PENDING' && 'Awaiting your review. Confirm as fraud or mark as legitimate.'}
+                                                                    {order.review_status === 'CONFIRMED_FRAUD' && 'You confirmed this as fraud. Pattern saved to Pinecone.'}
+                                                                    {order.review_status === 'FALSE_POSITIVE' && 'You marked this as legitimate. Signal weights adjusted.'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </>
+                    )}
+                    {/* Weights Tab */}
+                    {activeTab === 'weights' && weights && (
+                        <WeightsPanel
+                            weights={weights}
+                            onReset={async () => {
+                                if ( ! confirm('Reset all signal weights to defaults? This will lose your personalization.') ) return;
+                                setResetting(true);
+                                await api.post('weights/reset');
+                                await fetchWeights();
+                                setResetting(false);
+                            }}
+                            resetting={resetting}
+                        />
+                    )}
                 </>
             )}
         </div>

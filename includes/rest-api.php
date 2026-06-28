@@ -43,6 +43,20 @@ function aifd_register_rest_routes() {
         'permission_callback' => 'aifd_check_permission',
     ));
 
+    // Get current merchant weights
+    register_rest_route( 'aifd/v1', '/weights', array(
+        'methods'             => 'GET',
+        'callback'            => 'aifd_get_weights',
+        'permission_callback' => 'aifd_check_permission',
+    ));
+
+    // Reset weights to defaults
+    register_rest_route( 'aifd/v1', '/weights/reset', array(
+        'methods'             => 'POST',
+        'callback'            => 'aifd_reset_weights',
+        'permission_callback' => 'aifd_check_permission',
+    ));
+
 }
 
 function aifd_ajax_load_seeds() {
@@ -269,6 +283,84 @@ function aifd_override_fraud( $request ) {
         'status'  => 'FALSE_POSITIVE',
     ));
 
+}
+
+function aifd_get_weights() {
+
+    $defaults = array(
+        // Tier 1 — Critical
+        'card_testing_pattern'   => 0.30,
+        'disposable_email'       => 0.25,
+        'high_velocity'          => 0.25,
+        'address_mismatch'       => 0.20,
+        'freight_forwarder'      => 0.20,
+        // Tier 2 — Strong
+        'chargeback_history'     => 0.22,
+        'first_order_high_value' => 0.15,
+        'ip_proxy_vpn'           => 0.12,
+        'risky_country_combo'    => 0.12,
+        'mismatched_names'       => 0.10,
+        'no_phone_number'        => 0.10,
+        // Tier 3 — Contextual
+        'payment_method_risk'    => 0.08,
+        'multiple_addresses'     => 0.08,
+        'order_total_anomaly'    => 0.07,
+        'odd_hours'              => 0.05,
+        'guest_checkout'         => 0.05,
+        'new_account'            => 0.05,
+    );
+
+    $merchant_weights  = get_option( 'aifd_merchant_weights', array() );
+    $current_weights   = wp_parse_args( $merchant_weights, $defaults );
+    $false_positives   = (int) get_option( 'aifd_total_false_positives', 0 );
+    $overrides_by_signal = get_option( 'aifd_signal_override_counts', array() );
+
+    $result = array();
+
+    foreach ( $defaults as $signal => $default_weight ) {
+        $current = round( $current_weights[ $signal ] ?? $default_weight, 4 );
+        $reduced = $current < $default_weight;
+
+        $result[] = array(
+            'signal'          => $signal,
+            'default_weight'  => $default_weight,
+            'current_weight'  => $current,
+            'reduced'         => $reduced,
+            'reduction'       => $reduced ? round( ( $default_weight - $current ) / $default_weight * 100 ) : 0,
+            'times_overridden'=> $overrides_by_signal[ $signal ] ?? 0,
+            'tier'            => aifd_get_signal_tier( $signal ),
+        );
+    }
+
+    return rest_ensure_response( array(
+        'weights'         => $result,
+        'false_positives' => $false_positives,
+        'personalized'    => ! empty( $merchant_weights ),
+        'calibration'     => $false_positives >= 10
+            ? 'Well calibrated'
+            : 'Still learning (' . $false_positives . '/10 overrides)',
+    ));
+
+}
+
+function aifd_reset_weights() {
+
+    delete_option( 'aifd_merchant_weights' );
+    delete_option( 'aifd_signal_override_counts' );
+
+    return rest_ensure_response( array(
+        'success' => true,
+        'message' => 'Weights reset to global defaults',
+    ));
+
+}
+
+function aifd_get_signal_tier( $signal ) {
+    $tier1 = array( 'card_testing_pattern', 'disposable_email', 'high_velocity', 'address_mismatch', 'freight_forwarder' );
+    $tier2 = array( 'chargeback_history', 'first_order_high_value', 'ip_proxy_vpn', 'risky_country_combo', 'mismatched_names', 'no_phone_number' );
+    if ( in_array( $signal, $tier1 ) ) return 1;
+    if ( in_array( $signal, $tier2 ) ) return 2;
+    return 3;
 }
 
 // Migrate patterns to new provider
