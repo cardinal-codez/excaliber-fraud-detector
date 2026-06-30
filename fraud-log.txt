@@ -113,3 +113,162 @@
     "has_phone": false
 }
 
+========================================
+2026-06-28 17:50:01 - Order #56
+========================================
+🤖 AI SCORING (OPENAI_FUNCTION_CALLING):
+   Score:    84/100
+   Level:    HIGH
+   Decision: BLOCK
+   Reason:   The order has a low weighted risk score of 32, but it closely matches a confirmed fraud pattern with a similarity score of 0.966. The key flags include a disposable email, billing and shipping address mismatch, high order total compared to the store average, and the use of a cash on delivery payment method. Despite the velocity check indicating normal order behavior, the overwhelming signals suggest high risk for fraud.
+   Breakdown:
+     Raw signal score:   32/100
+     Calibrated signal:  64/100
+     Pattern boost:      +20
+     Velocity boost:     +0
+----------------------------------------
+🔍 PINECONE CONTEXT:
+   Status:   Searched via function calling agent ✅
+   Boost:    +20 points from pattern match
+----------------------------------------
+----------------------------------------
+📊 SIGNALS:
+{
+    "order_id": 56,
+    "order_total": 997,
+    "payment_method": "cod",
+    "date_created": "2026-06-28 17:48:46",
+    "customer_email": "xhj29kdmsomething@tempmail.com",
+    "customer_ip": "::1",
+    "billing_country": "US",
+    "shipping_country": "GB",
+    "billing_phone": "",
+    "card_testing_pattern": false,
+    "disposable_email": true,
+    "high_velocity": true,
+    "address_mismatch": true,
+    "freight_forwarder": false,
+    "chargeback_history": false,
+    "first_order_high_value": false,
+    "ip_proxy_vpn": false,
+    "risky_country_combo": false,
+    "mismatched_names": false,
+    "no_phone_number": true,
+    "payment_method_risk": true,
+    "multiple_addresses": false,
+    "order_total_anomaly": false,
+    "odd_hours": false,
+    "guest_checkout": false,
+    "new_account": false,
+    "is_new_customer": false,
+    "previous_order_count": 15,
+    "store_average": 662.9333333333333,
+    "has_phone": false
+}
+
+========================================
+2026-06-28 18:07:05 - Order #57
+========================================
+🤖 AI SCORING (OPENAI_FUNCTION_CALLING):
+   Score:    35/100
+   Level:    LOW
+   Decision: ALLOW
+   Reason:   The order shows a low risk score of 15, but multiple fraud signals were triggered, including an address mismatch, mismatched names, and no phone number provided. Additionally, a similar historical fraud pattern of card fraud involving mismatched names and international shipping was found with a high confidence score. However, the velocity check did not indicate any suspicious behavior with only 2 orders from the same IP in the last 60 minutes and 1 order from the same email.
+   Breakdown:
+     Raw signal score:   15/100
+     Calibrated signal:  30/100
+     Pattern boost:      +5
+     Velocity boost:     +0
+----------------------------------------
+🔍 PINECONE CONTEXT:
+   Status:   Searched via function calling agent ✅
+   Boost:    +5 points from pattern match
+----------------------------------------
+----------------------------------------
+📊 SIGNALS:
+{
+    "order_id": 57,
+    "order_total": 101,
+    "payment_method": "bacs",
+    "date_created": "2026-06-28 18:02:36",
+    "customer_email": "jane123@gmail.com",
+    "customer_ip": "::1",
+    "billing_country": "US",
+    "shipping_country": "CA",
+    "billing_phone": "",
+    "card_testing_pattern": false,
+    "disposable_email": false,
+    "high_velocity": false,
+    "address_mismatch": true,
+    "freight_forwarder": false,
+    "chargeback_history": false,
+    "first_order_high_value": false,
+    "ip_proxy_vpn": false,
+    "risky_country_combo": false,
+    "mismatched_names": true,
+    "no_phone_number": true,
+    "payment_method_risk": false,
+    "multiple_addresses": false,
+    "order_total_anomaly": false,
+    "odd_hours": false,
+    "guest_checkout": false,
+    "new_account": false,
+    "is_new_customer": true,
+    "previous_order_count": 1,
+    "store_average": "662.93333333333",
+    "has_phone": false
+}
+
+========================================
+2026-06-28 18:24:42 - Order #58
+========================================
+🤖 AI SCORING (OPENAI_FUNCTION_CALLING):
+   Score:    59/100
+   Level:    MEDIUM
+   Decision: REVIEW
+   Reason:   The order displays several risk signals: a card testing pattern, a high-risk billing/shipping country combination, and the account was created less than 24 hours ago. Additionally, there are 4 orders from the same IP within 60 minutes, which raises further suspicions. The similarity score to a known fraud pattern indicates a potential for card fraud. Therefore, it is recommended to decline this order.
+   Breakdown:
+     Raw signal score:   22/100
+     Calibrated signal:  44/100
+     Pattern boost:      +5
+     Velocity boost:     +10
+----------------------------------------
+🔍 PINECONE CONTEXT:
+   Status:   Searched via function calling agent ✅
+   Boost:    +5 points from pattern match
+----------------------------------------
+----------------------------------------
+📊 SIGNALS:
+{
+    "order_id": 58,
+    "order_total": 12,
+    "payment_method": "bacs",
+    "date_created": "2026-06-28 18:20:27",
+    "customer_email": "sarah@gmail.com",
+    "customer_ip": "::1",
+    "billing_country": "US",
+    "shipping_country": "US",
+    "billing_phone": "+1234567890",
+    "card_testing_pattern": true,
+    "disposable_email": false,
+    "high_velocity": false,
+    "address_mismatch": false,
+    "freight_forwarder": false,
+    "chargeback_history": false,
+    "first_order_high_value": false,
+    "ip_proxy_vpn": false,
+    "risky_country_combo": true,
+    "mismatched_names": false,
+    "no_phone_number": false,
+    "payment_method_risk": false,
+    "multiple_addresses": false,
+    "order_total_anomaly": false,
+    "odd_hours": false,
+    "guest_checkout": false,
+    "new_account": true,
+    "is_new_customer": true,
+    "previous_order_count": 1,
+    "store_average": "662.93333333333",
+    "has_phone": true
+}
+

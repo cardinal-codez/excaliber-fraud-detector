@@ -9,6 +9,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ══════════════════════════════════════════════════════
 
 add_action( 'woocommerce_new_order', 'aifd_catch_new_order', 10, 1 );
+// Add NEW hook to enforce status AFTER payment gateway
+add_action( 'woocommerce_order_status_changed', 'aifd_enforce_block_status', 99, 3 );
+
+add_action( 'woocommerce_payment_complete', 'aifd_enforce_block_on_payment', 99, 1 );
 
 function aifd_catch_new_order( $order_id ) {
 
@@ -199,18 +203,55 @@ function aifd_is_suspicious_email( $email ) {
 
 function aifd_is_risky_country_combo( $billing, $shipping ) {
 
-    $risky_combos = array(
-        array( 'NG', 'US' ), array( 'NG', 'GB' ),
-        array( 'GH', 'US' ), array( 'GH', 'GB' ),
-        array( 'RU', 'US' ), array( 'RU', 'GB' ),
-        array( 'CN', 'US' ), array( 'CN', 'GB' ),
-        array( 'VN', 'US' ), array( 'ID', 'US' ),
+    // Same country = never risky
+    if ( $billing === $shipping ) return false;
+
+    // Get store's home country from WooCommerce settings
+    $store_country = WC()->countries->get_base_country();
+    // Returns 'IN' for India, 'QA' for Qatar, 'US' for USA etc
+
+    // Never flag if shipping TO store's home country
+    // These are likely legitimate local customers
+    if ( $shipping === $store_country ) return false;
+
+    // Never flag if billing FROM store's home country
+    if ( $billing === $store_country ) return false;
+
+    $high_risk_countries = array(
+        'NG', 'GH', 'CI', 'CM', 'SN', // Africa
+        'RU', 'UA', 'BY', 'RO', 'BG', // Eastern Europe
+        'CN', 'VN', 'ID', 'PH', 'MY', // Southeast Asia
+        'PK', 'BD',                     // South Asia
+        'BR', 'CO', 'MX', 'VE',        // Latin America
     );
 
-    foreach ( $risky_combos as $combo ) {
-        if ( in_array( $billing, $combo ) && in_array( $shipping, $combo ) ) {
-            return true;
-        }
+    $high_value_destinations = array(
+        'US', 'GB', 'CA', 'AU',
+        'DE', 'FR', 'NL', 'CH',
+        'SE', 'NO', 'DK', 'FI',
+        'JP', 'SG', 'HK', 'AE',
+        'QA', 'SA', 'KW',              // Gulf countries
+    );
+
+    // Remove store country from both lists
+    // So store's home country is never flagged
+    $high_risk_countries      = array_diff( $high_risk_countries,      array( $store_country ) );
+    $high_value_destinations  = array_diff( $high_value_destinations,  array( $store_country ) );
+
+    // Flag if billing from high risk → shipping to high value
+    if (
+        in_array( $billing, $high_risk_countries ) &&
+        in_array( $shipping, $high_value_destinations )
+    ) {
+        return true;
+    }
+
+    // Flag reverse — billing in rich country → shipping to fraud hub
+    if (
+        in_array( $shipping, $high_risk_countries ) &&
+        in_array( $billing, $high_value_destinations )
+    ) {
+        return true;
     }
 
     return false;
@@ -939,10 +980,59 @@ function aifd_increment_similar_pattern_count( $order_id, $pinecone, $embedding,
 
 }
 
+function aifd_enforce_block_status( $order_id, $old_status, $new_status ) {
+
+    // Only care about orders moving TO processing
+    if ( $new_status !== 'processing' ) return;
+
+    $order    = wc_get_order( $order_id );
+    $decision = $order->get_meta( '_aifd_decision' );
+
+    // If our AI said BLOCK → override back to on-hold!
+    if ( $decision === 'BLOCK' ) {
+
+        // Remove this action temporarily to avoid infinite loop
+        remove_action( 'woocommerce_order_status_changed', 'aifd_enforce_block_status', 99 );
+
+        $order->update_status(
+            'on-hold',
+            '🚨 AI Fraud Detector: Order blocked (score: ' . $order->get_meta('_aifd_risk_score') . '/100). Payment gateway override prevented.'
+        );
+
+        $order->save();
+
+        // Re-add the action
+        add_action( 'woocommerce_order_status_changed', 'aifd_enforce_block_status', 99, 3 );
+
+        error_log( 'AIFD: Enforced on-hold for order #' . $order_id . ' — overrode payment gateway' );
+
+    }
+
+}
+
+function aifd_enforce_block_on_payment( $order_id ) {
+
+    $order    = wc_get_order( $order_id );
+    $decision = $order->get_meta( '_aifd_decision' );
+
+    if ( $decision === 'BLOCK' ) {
+
+        $order->update_status(
+            'on-hold',
+            '🚨 AI Fraud Detector: Payment received but order blocked due to HIGH fraud risk.'
+        );
+
+        $order->save();
+
+        error_log( 'AIFD: Blocked order #' . $order_id . ' after payment complete' );
+
+    }
+
+}
+
 // ══════════════════════════════════════════════════════
 // LOGGING
-// ══════════════════════════════════════════════════════
-
+// ══════════════════════════════════════════════════
 function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result ) {
     write_log( "Logging order #$order_id with AI result: " . json_encode( $ai_result ) );
 
