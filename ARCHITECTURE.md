@@ -46,6 +46,28 @@ Override → record false positive
 System learns per merchant over time 🧠
 ```
 
+## Capability Tiers (Local-First Architecture)
+
+To meet WordPress.org review requirements and protect merchants from
+checkout-breaking outages, the plugin uses a three-tier capability
+gate instead of requiring AI on every order.
+
+| Tier | What it does | Default | Requires |
+|------|--------------|---------|----------|
+| 0 — Local | 17 weighted signals, pure PHP | Always on | Nothing |
+| 1 — Vector Memory | Pinecone similarity search | Off | Key + consent |
+| 2 — AI Reasoning | Function calling agent | Off | Key + consent |
+
+Each tier wraps its external calls in a try/catch. A circuit breaker
+trips after 3 consecutive failures and disables that tier for 10
+minutes, falling back to the next tier down. Checkout is never
+blocked by a third-party outage — `aifd_catch_new_order()` always
+returns a usable score from Tier 0 at minimum.
+
+This separation also satisfies WordPress.org's requirement that
+plugins not contact external servers without explicit user consent —
+Tiers 1 and 2 require both an enabled checkbox and a separate consent
+checkbox before any external request is made.
 ---
 
 ## Multi-Provider AI Architecture

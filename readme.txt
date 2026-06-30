@@ -1,0 +1,80 @@
+=== AI Fraud Detector for WooCommerce ===
+Contributors: dilruba
+Tags: fraud, woocommerce, security, ai, vector search
+Requires at least: 6.0
+Tested up to: 6.7
+Requires PHP: 8.0
+Stable tag: 1.0.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
+Real-time fraud detection for WooCommerce. Works instantly with local
+signal scoring — optional AI and vector search layers available.
+
+== Description ==
+
+AI Fraud Detector scores every WooCommerce order against 17 weighted
+fraud signals (disposable emails, address mismatches, card testing
+patterns, and more) the moment it's placed. The local scoring engine
+is pure PHP, requires no setup, and sends no data anywhere — it works
+immediately after activation.
+
+For stores that want deeper protection, two optional layers can be
+enabled separately, each requiring explicit consent:
+
+* **Vector pattern memory** — searches a database of known fraud
+  patterns for similarity matches (requires Pinecone account)
+* **AI reasoning layer** — generates plain-English explanations using
+  OpenAI, Anthropic, or Google Gemini (requires an API key from your
+  chosen provider)
+
+= Third-Party Services & Data Disclosure =
+
+This plugin can optionally connect to the following services. Each
+is **off by default** and requires you to enable it and confirm
+consent in Settings before any data is sent.
+
+**Vector Memory (optional)**
+Sends signal pattern text (e.g. "disposable_email address_mismatch")
+to your chosen embedding provider, then to Pinecone for storage and
+search. No customer name, email, or address text is included.
+[OpenAI Privacy Policy](https://openai.com/policies/privacy-policy)
+[Pinecone Privacy Policy](https://www.pinecone.io/legal/privacy-policy/)
+[Voyage AI Privacy Policy](https://www.voyageai.com/privacy)
+
+**AI Reasoning (optional)**
+Sends customer email, IP address, billing/shipping country, order
+total, and payment method to your chosen AI provider to generate a
+risk explanation.
+[OpenAI Privacy Policy](https://openai.com/policies/privacy-policy)
+[Anthropic Privacy Policy](https://www.anthropic.com/legal/privacy)
+[Google Privacy Policy](https://policies.google.com/privacy)
+
+If neither optional layer is enabled, no order data leaves your site.
+
+== Installation ==
+
+1. Upload and activate the plugin.
+2. Local fraud scoring is active immediately — no setup required.
+3. (Optional) Go to Fraud Detector → Settings to enable Vector Memory
+   or AI Reasoning. Each requires an API key and an explicit consent
+   checkbox before it activates.
+
+== Frequently Asked Questions ==
+
+= Does this work without any API keys? =
+Yes. Local signal scoring runs on every order automatically with no
+external service required.
+
+= What happens if my OpenAI key stops working? =
+The plugin automatically falls back to local scoring. Orders are
+never blocked or delayed by a third-party outage.
+
+= Is customer data shared with anyone by default? =
+No. Data is only sent to third parties if you explicitly enable and
+consent to the optional Vector Memory or AI Reasoning layers.
+
+== Changelog ==
+
+= 1.0.0 =
+* Initial release — local-first scoring with optional AI/vector tiers

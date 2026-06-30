@@ -5,6 +5,63 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ══════════════════════════════════════════════════════
+// CAPABILITY GATES — Local-first, opt-in AI/vector layers
+// ══════════════════════════════════════════════════════
+
+function aifd_tier1_ready() {
+
+    if ( ! get_option( 'aifd_tier1_enabled' ) ) return false;
+    if ( ! get_option( 'aifd_tier1_consent' ) ) return false;
+    if ( ! get_option( 'aifd_pinecone_key' ) )  return false;
+    if ( ! get_option( 'aifd_pinecone_host' ) ) return false;
+
+    // Circuit breaker — skip if Pinecone failed recently
+    $last_failure = get_transient( 'aifd_pinecone_circuit_open' );
+    if ( $last_failure ) return false;
+
+    return true;
+
+}
+
+function aifd_tier2_ready() {
+
+    if ( ! get_option( 'aifd_tier2_enabled' ) ) return false;
+    if ( ! get_option( 'aifd_tier2_consent' ) ) return false;
+
+    $provider = get_option( 'aifd_ai_provider', 'openai' );
+
+    $key_map = array(
+        'openai'    => 'aifd_openai_key',
+        'anthropic' => 'aifd_anthropic_key',
+        'gemini'    => 'aifd_gemini_key',
+        'ollama'    => null, // no key needed
+    );
+
+    $key_option = $key_map[ $provider ] ?? null;
+    if ( $key_option && ! get_option( $key_option ) ) return false;
+
+    // Circuit breaker — skip if provider failed recently
+    $last_failure = get_transient( 'aifd_provider_circuit_open' );
+    if ( $last_failure ) return false;
+
+    return true;
+
+}
+
+/**
+ * Trip the circuit breaker for 10 minutes after repeated failures
+ */
+function aifd_trip_circuit( $key ) {
+    $fail_count = (int) get_transient( $key . '_fails' ) + 1;
+    set_transient( $key . '_fails', $fail_count, 5 * MINUTE_IN_SECONDS );
+
+    if ( $fail_count >= 3 ) {
+        set_transient( $key . '_circuit_open', true, 10 * MINUTE_IN_SECONDS );
+        error_log( "AIFD: Circuit breaker tripped for {$key} after {$fail_count} failures" );
+    }
+}
+
+// ══════════════════════════════════════════════════════
 // MAIN HOOK
 // ══════════════════════════════════════════════════════
 
@@ -14,27 +71,82 @@ add_action( 'woocommerce_order_status_changed', 'aifd_enforce_block_status', 99,
 
 add_action( 'woocommerce_payment_complete', 'aifd_enforce_block_on_payment', 99, 1 );
 
+// function aifd_catch_new_order( $order_id ) {
+
+//     $order = wc_get_order( $order_id );
+
+//     // Extract 16 fraud signals
+//     $fraud_signals = aifd_extract_signals( $order );
+
+//     // Get AI score via selected provider
+//     $ai_result = aifd_call_provider( $fraud_signals );
+
+//     // Get rule based backup score
+//     $risk_result = aifd_calculate_risk_score( $fraud_signals );
+
+//     // Update order + save meta
+//     aifd_update_order_status( $order_id, $ai_result, $risk_result );
+
+//     // Send email alert
+//     aifd_send_alert_email( $order_id, $ai_result );
+
+//     // Log
+//     aifd_log_order_with_ai( $order_id, $fraud_signals, $risk_result, $ai_result );
+
+// }
+
 function aifd_catch_new_order( $order_id ) {
 
     $order = wc_get_order( $order_id );
 
-    // Extract 16 fraud signals
+    // Extract signals — always runs, no external calls
     $fraud_signals = aifd_extract_signals( $order );
 
-    // Get AI score via selected provider
-    $ai_result = aifd_call_provider( $fraud_signals );
-
-    // Get rule based backup score
+    // ── Tier 0 — Local scoring (ALWAYS runs, never fails) ──
     $risk_result = aifd_calculate_risk_score( $fraud_signals );
 
-    // Update order + save meta
-    aifd_update_order_status( $order_id, $ai_result, $risk_result );
+    // Start with local result as the source of truth
+    $final_result = array(
+        'risk_score' => $risk_result['risk_score'],
+        'risk_level' => $risk_result['risk_level'],
+        'decision'   => $risk_result['decision'],
+        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: 'No risk signals detected.',
+        'source'     => 'local_rules',
+    );
 
-    // Send email alert
-    aifd_send_alert_email( $order_id, $ai_result );
+    $pinecone_context = array( 'available' => false );
 
-    // Log
-    aifd_log_order_with_ai( $order_id, $fraud_signals, $risk_result, $ai_result );
+    // ── Tier 1 — Vector memory (opt-in) ─────────────────────
+    if ( aifd_tier1_ready() ) {
+        try {
+            $pinecone_context = aifd_get_pinecone_context( $fraud_signals );
+        } catch ( Exception $e ) {
+            aifd_trip_circuit( 'aifd_pinecone' );
+            error_log( 'AIFD: Tier 1 failed, continuing with local score — ' . $e->getMessage() );
+        }
+    }
+
+    // ── Tier 2 — AI reasoning (opt-in) ──────────────────────
+    if ( aifd_tier2_ready() ) {
+        try {
+            $ai_result = aifd_call_provider( $fraud_signals );
+
+            // Only trust the AI result if it didn't fall back internally
+            if ( ( $ai_result['source'] ?? '' ) !== 'fallback' ) {
+                $final_result = $ai_result;
+            } else {
+                aifd_trip_circuit( 'aifd_provider' );
+            }
+        } catch ( Exception $e ) {
+            aifd_trip_circuit( 'aifd_provider' );
+            error_log( 'AIFD: Tier 2 failed, continuing with Tier 0/1 score — ' . $e->getMessage() );
+        }
+    }
+
+    // Update order + notify — always runs, regardless of which tier produced the score
+    aifd_update_order_status( $order_id, $final_result, $risk_result );
+    aifd_send_alert_email( $order_id, $final_result );
+    aifd_log_order_with_ai( $order_id, $fraud_signals, $risk_result, $final_result );
 
 }
 

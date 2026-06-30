@@ -207,7 +207,6 @@ const WeightsPanel = ({ weights, onReset, resetting }) => {
                     {resetting ? '⏳ Resetting...' : '↺ Reset to Defaults'}
                 </button>
             </div>
-
             {/* Personalization status */}
             <div style={{
                 padding: '12px 16px', marginBottom: '20px',
@@ -420,6 +419,35 @@ const FraudDashboard = () => {
                     ● Live Protection Active
                 </div>
             </div>
+
+            {stats && (
+                <div style={{
+                    display: 'flex', gap: '8px', marginBottom: '16px', fontSize: '11px'
+                }}>
+                    <span style={{
+                        padding: '4px 10px', borderRadius: '12px',
+                        background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0'
+                    }}>
+                        ✅ Local Scoring: Active
+                    </span>
+                    <span style={{
+                        padding: '4px 10px', borderRadius: '12px',
+                        background: stats.tier1_active ? '#eff6ff' : '#f8fafc',
+                        color: stats.tier1_active ? '#1d4ed8' : '#94a3b8',
+                        border: `1px solid ${stats.tier1_active ? '#bfdbfe' : '#e2e8f0'}`
+                    }}>
+                        {stats.tier1_active ? '✅' : '○'} Vector Memory: {stats.tier1_active ? 'Active' : 'Off'}
+                    </span>
+                    <span style={{
+                        padding: '4px 10px', borderRadius: '12px',
+                        background: stats.tier2_active ? '#eff6ff' : '#f8fafc',
+                        color: stats.tier2_active ? '#1d4ed8' : '#94a3b8',
+                        border: `1px solid ${stats.tier2_active ? '#bfdbfe' : '#e2e8f0'}`
+                    }}>
+                        {stats.tier2_active ? '✅' : '○'} AI Reasoning: {stats.tier2_active ? 'Active' : 'Off'}
+                    </span>
+                </div>
+            )}
 
             {/* Tab Navigation */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '0' }}>

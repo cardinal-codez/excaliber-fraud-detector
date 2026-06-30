@@ -96,6 +96,8 @@ function aifd_get_stats() {
         'saved'   => (float) get_option( 'aifd_total_saved', 0 ),
         'confirmed_fraud'  => (int) get_option( 'aifd_total_confirmed_fraud', 0 ),
         'false_positives'  => (int) get_option( 'aifd_total_false_positives', 0 ),
+        'tier1_active'    => aifd_tier1_ready(),
+        'tier2_active'    => aifd_tier2_ready(),
     ));
 }
 
