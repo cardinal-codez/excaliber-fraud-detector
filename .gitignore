@@ -6,6 +6,7 @@ node_modules/
 
 # Logs
 fraud-log.txt
+*.log
 
 # Mac files
 .DS_Store

@@ -20,19 +20,19 @@
 
 | Day | Goal | Status |
 |-----|------|--------|
-| Day 13 | Multi-provider + Settings page | 🔥 Active |
-| Day 14 | Pinecone setup + load 50 fraud patterns | ⏳ |
-| Day 15 | Add 15 legit patterns + chargeback signal | ⏳ |
-| Day 16 | Connect Pinecone to scoring pipeline | ⏳ |
-| Day 17 | Function calling replaces basic prompt | ⏳ |
-| Day 18 | Test function calling end to end | ⏳ |
-| Day 19 | Feedback loop UI | ⏳ |
-| Day 20 | Feedback loop saves to Pinecone | ⏳ |
-| Day 21 | Per-merchant weight personalization | ⏳ |
-| Day 22 | End to end testing | ⏳ |
-| Day 23 | Bug fixes | ⏳ |
-| Day 24 | README + ARCHITECTURE.md update | ⏳ |
-| Day 25 | GitHub cleanup, portfolio ready 🎉 | ⏳ |
+| Day 13 | Multi-provider + Settings page | ✅ Done |
+| Day 14 | Pinecone setup + load 50 fraud patterns | ✅ Done |
+| Day 15 | Add 15 legit patterns + chargeback signal | ✅ Done |
+| Day 16 | Connect Pinecone to scoring pipeline | ✅ Done |
+| Day 17 | Function calling replaces basic prompt | ✅ Done |
+| Day 18 | Test function calling end to end | ✅ Done |
+| Day 19 | Feedback loop UI | ✅ Done |
+| Day 20 | Feedback loop saves to Pinecone | ✅ Done |
+| Day 21 | Per-merchant weight personalization | ✅ Done |
+| Day 22 | End to end testing | ✅ Done |
+| Day 23 | Bug fixes | ✅ Done |
+| Day 24 | README + ARCHITECTURE.md update | ✅ Done |
+| Day 25 | GitHub cleanup 🎉 | ✅ Done |
 
 ## Phase 3 — Platform Expansion (Planned)
 

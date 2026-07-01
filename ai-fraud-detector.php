@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name: AI Fraud Detector
- * Plugin URI: https://github.com/dilrubaummer/ai-fraud-detector
+ * Plugin URI: https://github.com/dilrubaummer/ai-fraude-detector
  * Description: AI powered fraud detection for WooCommerce
- * Version: 0.1.0
+ * Version: 1.0.0
  * Author: Dilruba
  * License: GPL2
  */
@@ -13,9 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 define( 'AIFD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AIFD_URL', plugin_dir_url( __FILE__ ) );
-// Your OpenAI API Key
-//define( 'AIFD_OPENAI_KEY', '***REMOVED-OPENAI-KEY***' );
-
 
 require_once AIFD_PATH . 'includes/providers/class-provider-base.php';
 require_once AIFD_PATH . 'includes/providers/class-provider-openai.php';
