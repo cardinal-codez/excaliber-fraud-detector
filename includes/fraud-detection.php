@@ -10,14 +10,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 function aifd_tier1_ready() {
 
-    if ( ! get_option( 'aifd_tier1_enabled' ) ) return false;
-    if ( ! get_option( 'aifd_tier1_consent' ) ) return false;
     if ( ! get_option( 'aifd_pinecone_key' ) )  return false;
     if ( ! get_option( 'aifd_pinecone_host' ) ) return false;
 
     // Circuit breaker — skip if Pinecone failed recently
-    $last_failure = get_transient( 'aifd_pinecone_circuit_open' );
-    if ( $last_failure ) return false;
+    if ( get_transient( 'aifd_pinecone_circuit_open' ) ) return false;
 
     return true;
 
@@ -25,24 +22,24 @@ function aifd_tier1_ready() {
 
 function aifd_tier2_ready() {
 
-    if ( ! get_option( 'aifd_tier2_enabled' ) ) return false;
-    if ( ! get_option( 'aifd_tier2_consent' ) ) return false;
-
     $provider = get_option( 'aifd_ai_provider', 'openai' );
 
     $key_map = array(
         'openai'    => 'aifd_openai_key',
         'anthropic' => 'aifd_anthropic_key',
         'gemini'    => 'aifd_gemini_key',
-        'ollama'    => null, // no key needed
+        'ollama'    => null, // no key needed, but host must be set
     );
 
-    $key_option = $key_map[ $provider ] ?? null;
-    if ( $key_option && ! get_option( $key_option ) ) return false;
+    if ( $provider === 'ollama' ) {
+        if ( ! get_option( 'aifd_ollama_host' ) ) return false;
+    } else {
+        $key_option = $key_map[ $provider ] ?? null;
+        if ( $key_option && ! get_option( $key_option ) ) return false;
+    }
 
     // Circuit breaker — skip if provider failed recently
-    $last_failure = get_transient( 'aifd_provider_circuit_open' );
-    if ( $last_failure ) return false;
+    if ( get_transient( 'aifd_provider_circuit_open' ) ) return false;
 
     return true;
 
@@ -122,7 +119,6 @@ function aifd_catch_new_order( $order_id ) {
             $pinecone_context = aifd_get_pinecone_context( $fraud_signals );
         } catch ( Exception $e ) {
             aifd_trip_circuit( 'aifd_pinecone' );
-            error_log( 'AIFD: Tier 1 failed, continuing with local score — ' . $e->getMessage() );
         }
     }
 
@@ -139,7 +135,6 @@ function aifd_catch_new_order( $order_id ) {
             }
         } catch ( Exception $e ) {
             aifd_trip_circuit( 'aifd_provider' );
-            error_log( 'AIFD: Tier 2 failed, continuing with Tier 0/1 score — ' . $e->getMessage() );
         }
     }
 
@@ -790,8 +785,6 @@ function aifd_adjust_weights_on_override( $fired_signals ) {
     update_option( 'aifd_merchant_weights', $weights );
     update_option( 'aifd_signal_override_counts', $override_counts );
 
-    error_log( 'AIFD: Weights adjusted for signals: ' . implode( ', ', $fired_signals ) );
-
 }
 
 // ══════════════════════════════════════════════════════
@@ -988,7 +981,6 @@ function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
     $pinecone = new AIFD_Pinecone();
 
     if ( ! $pinecone->is_configured() ) {
-        error_log( 'AIFD: Pinecone not configured — skipping pattern save' );
         return false;
     }
 
@@ -999,7 +991,6 @@ function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
     $provider      = get_option( 'aifd_ai_provider', 'openai' );
 
     if ( empty( $fired_signals ) ) {
-        error_log( 'AIFD: No fired signals found for order #' . $order_id );
         return false;
     }
 
@@ -1023,7 +1014,6 @@ function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
     $embedding  = $embeddings->embed( $pattern_text, $provider );
 
     if ( ! $embedding ) {
-        error_log( 'AIFD: Embedding failed for confirmed pattern — order #' . $order_id );
         return false;
     }
 
@@ -1049,8 +1039,6 @@ function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
     );
 
     if ( $success ) {
-        error_log( 'AIFD: Pattern saved to Pinecone for order #' . $order_id . ' in namespace ' . $namespace );
-
         // Update times_seen for similar existing patterns
         aifd_increment_similar_pattern_count( $order_id, $pinecone, $embedding, $namespace );
     }
@@ -1116,8 +1104,6 @@ function aifd_enforce_block_status( $order_id, $old_status, $new_status ) {
         // Re-add the action
         add_action( 'woocommerce_order_status_changed', 'aifd_enforce_block_status', 99, 3 );
 
-        error_log( 'AIFD: Enforced on-hold for order #' . $order_id . ' — overrode payment gateway' );
-
     }
 
 }
@@ -1136,8 +1122,6 @@ function aifd_enforce_block_on_payment( $order_id ) {
 
         $order->save();
 
-        error_log( 'AIFD: Blocked order #' . $order_id . ' after payment complete' );
-
     }
 
 }
@@ -1151,7 +1135,7 @@ function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result )
     $log_file = AIFD_PATH . 'fraud-log.txt';
 
     $log_entry  = "========================================\n";
-    $log_entry .= date( 'Y-m-d H:i:s' ) . ' - Order #' . $order_id . "\n";
+    $log_entry .= gmdate( 'Y-m-d H:i:s' ) . ' - Order #' . $order_id . "\n";
     $log_entry .= "========================================\n";
     $log_entry .= "🤖 AI SCORING (" . strtoupper( $ai_result['source'] ?? 'unknown' ) . "):\n";
     $log_entry .= "   Score:    " . $ai_result['risk_score'] . "/100\n";

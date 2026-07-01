@@ -54,7 +54,6 @@ class AIFD_Pinecone {
         ));
 
         if ( is_wp_error( $response ) ) {
-            error_log( 'AIFD Pinecone upsert error: ' . $response->get_error_message() );
             return false;
         }
 
@@ -90,14 +89,11 @@ class AIFD_Pinecone {
         ));
 
         if ( is_wp_error( $response ) ) {
-            error_log( 'AIFD DEBUG: Pinecone query WP_Error — ' . $response->get_error_message() );
             return array();
         }
 
         $status = wp_remote_retrieve_response_code( $response );
         $body_raw = wp_remote_retrieve_body( $response );
-        error_log( 'AIFD DEBUG: Pinecone HTTP status = ' . $status );
-        error_log( 'AIFD DEBUG: Pinecone raw response = ' . substr( $body_raw, 0, 500 ) );
 
         $data = json_decode( $body_raw, true );
         return $data['matches'] ?? array();
@@ -110,15 +106,12 @@ class AIFD_Pinecone {
     public function search_similar_patterns( $signals, $top_k = 5 ) {
 
         if ( ! $this->is_configured() ) {
-            error_log( 'AIFD DEBUG: Pinecone not configured' );
             return array();
         }
 
         $pattern_text = $this->build_pattern_text( $signals );
-        error_log( 'AIFD DEBUG: Pattern text = ' . $pattern_text );
 
         if ( empty( $pattern_text ) ) {
-            error_log( 'AIFD DEBUG: Pattern text empty — no signals fired' );
             return array();
         }
 
@@ -126,17 +119,12 @@ class AIFD_Pinecone {
         $embedding = $this->embeddings->embed( $pattern_text, $provider );
 
         if ( ! $embedding ) {
-            error_log( 'AIFD DEBUG: Embedding FAILED for provider ' . $provider );
             return array();
         }
 
-        error_log( 'AIFD DEBUG: Embedding success, length = ' . count( $embedding ) );
-
         $namespace = $this->embeddings->get_namespace( $provider );
-        error_log( 'AIFD DEBUG: Searching namespace = ' . $namespace );
 
         $matches = $this->query( $embedding, $top_k, $namespace );
-        error_log( 'AIFD DEBUG: Matches found = ' . count( $matches ) );
 
         return $matches;
 

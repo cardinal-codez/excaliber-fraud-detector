@@ -66,7 +66,6 @@ class AIFD_Seed_Loader {
 
             if ( ! $embedding ) {
                 $failed++;
-                error_log( 'AIFD Seed Loader: Failed to embed pattern ' . $pattern['id'] );
                 continue;
             }
 

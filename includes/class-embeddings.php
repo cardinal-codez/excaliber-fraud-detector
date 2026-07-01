@@ -89,7 +89,6 @@ class AIFD_Embeddings {
         $api_key = get_option( 'aifd_openai_key', '' );
 
         if ( empty( $api_key ) ) {
-            error_log( 'AIFD Embeddings: OpenAI key missing' );
             return false;
         }
 
@@ -106,7 +105,6 @@ class AIFD_Embeddings {
         ));
 
         if ( is_wp_error( $response ) ) {
-            error_log( 'AIFD Embeddings: OpenAI request failed — ' . $response->get_error_message() );
             return false;
         }
 
@@ -125,7 +123,6 @@ class AIFD_Embeddings {
 
         if ( empty( $api_key ) ) {
             // Fallback to OpenAI if no Voyage key
-            error_log( 'AIFD: No Voyage API key — falling back to OpenAI embeddings' );
             return $this->embed_openai( $text );
         }
 
@@ -142,7 +139,6 @@ class AIFD_Embeddings {
         ));
 
         if ( is_wp_error( $response ) ) {
-            error_log( 'AIFD Embeddings: Voyage request failed — falling back to OpenAI' );
             return $this->embed_openai( $text );
         }
 
@@ -159,7 +155,6 @@ class AIFD_Embeddings {
         $api_key = get_option( 'aifd_gemini_key', '' );
 
         if ( empty( $api_key ) ) {
-            error_log( 'AIFD Embeddings: Gemini key missing' );
             return false;
         }
 
@@ -181,7 +176,6 @@ class AIFD_Embeddings {
         ));
 
         if ( is_wp_error( $response ) ) {
-            error_log( 'AIFD Embeddings: Gemini request failed — ' . $response->get_error_message() );
             return false;
         }
 
@@ -210,7 +204,6 @@ class AIFD_Embeddings {
         ));
 
         if ( is_wp_error( $response ) ) {
-            error_log( 'AIFD Embeddings: Ollama request failed — is Ollama running?' );
             return false;
         }
 

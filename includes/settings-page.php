@@ -133,28 +133,6 @@ function aifd_register_settings() {
         'default'           => 'fraud-patterns-768'
     ));
 
-    // Tier toggles + consent
-    register_setting( 'aifd_settings', 'aifd_tier1_enabled', array(
-        'sanitize_callback' => 'absint',
-        'default'           => 0,
-    ));
-    register_setting( 'aifd_settings', 'aifd_tier1_consent', array(
-        'sanitize_callback' => 'absint',
-        'default'           => 0,
-    ));
-    register_setting( 'aifd_settings', 'aifd_tier2_enabled', array(
-        'sanitize_callback' => 'absint',
-        'default'           => 0,
-    ));
-    register_setting( 'aifd_settings', 'aifd_tier2_consent', array(
-        'sanitize_callback' => 'absint',
-        'default'           => 0,
-    ));
-    register_setting( 'aifd_settings', 'aifd_tier2_consent_date', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => '',
-    ));
-
 }
 
 // ══════════════════════════════════════════════
@@ -175,84 +153,21 @@ function aifd_render_settings_page() {
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;margin-bottom:20px">
                 <strong>✅ Local Fraud Detection — Always Active</strong>
                 <p style="margin:6px 0 0;font-size:13px;color:#166534">
-                    Your 17-signal weighted scoring engine runs on every order automatically.
-                    It is pure PHP, requires no API keys, sends no data anywhere, and runs in
-                    roughly 2ms. This is the foundation — everything below is optional and adds
-                    smarter detection on top.
+                    A 17-signal weighted scoring engine checks every order automatically.
+                    It is pure PHP, needs no API keys, sends no order data to external services,
+                    and adds negligible overhead to checkout. This is the foundation —
+                    everything below is optional.
                 </p>
             </div>
 
-            <h2>Tier 1 — Vector Memory <span style="font-size:12px;color:#64748b">(Optional)</span></h2>
-            <table class="form-table">
-                <tr>
-                    <th scope="row">Enable Pinecone Vector Search</th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="aifd_tier1_enabled" value="1"
-                                <?php checked( get_option('aifd_tier1_enabled'), 1 ); ?>>
-                            Search historical fraud patterns to improve scoring accuracy
-                        </label>
-                        <p class="description">
-                            Requires Pinecone + an embedding API key. Order signal patterns
-                            (e.g. "disposable_email address_mismatch") are sent to your chosen
-                            AI provider to generate a vector. No customer name, email, or address
-                            text is included in what gets embedded.
-                        </p>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Consent</th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="aifd_tier1_consent" value="1"
-                                <?php checked( get_option('aifd_tier1_consent'), 1 ); ?>>
-                            I understand that enabling this sends order signal patterns to my
-                            chosen embedding provider and to Pinecone for storage and search.
-                        </label>
-                    </td>
-                </tr>
-            </table>
-
-            <h2>Tier 2 — AI Reasoning Layer <span style="font-size:12px;color:#64748b">(Optional)</span></h2>
-            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:12px">
-                <strong>⚠️ This tier sends order data to a third-party AI provider</strong>
-                <p style="margin:6px 0 0;font-size:13px;color:#92400e">
-                    Enabling this sends the customer's email address, IP address, billing/shipping
-                    country, order total, and payment method to your selected AI provider
-                    (OpenAI, Anthropic, or Google) to generate a plain-English risk explanation.
-                    This is personal data leaving your store. See the
-                    <a href="#third-party-disclosure">Third-Party Data Disclosure</a> below.
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin-bottom:20px">
+                <strong>ℹ️ Optional layers activate automatically once configured</strong>
+                <p style="margin:6px 0 0;font-size:13px;color:#1d4ed8">
+                    Add a Pinecone key below to enable vector pattern search.
+                    Add an AI provider key to enable AI reasoning.
+                    Each layer turns on the moment its keys are saved — no separate toggle needed.
                 </p>
             </div>
-            <table class="form-table">
-                <tr>
-                    <th scope="row">Enable AI Reasoning</th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="aifd_tier2_enabled" value="1"
-                                <?php checked( get_option('aifd_tier2_enabled'), 1 ); ?>>
-                            Use AI function calling for autonomous analysis and plain-English reasoning
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Consent <span style="color:#dc2626">Required</span></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="aifd_tier2_consent" value="1"
-                                <?php checked( get_option('aifd_tier2_consent'), 1 ); ?>>
-                            I have read the third-party data disclosure and consent to sending
-                            customer email, IP address, and order details to
-                            <strong><?php echo esc_html( strtoupper( get_option('aifd_ai_provider', 'openai') ) ); ?></strong>
-                            for fraud scoring.
-                        </label>
-                        <?php $consent_date = get_option('aifd_tier2_consent_date'); ?>
-                        <?php if ( $consent_date ) : ?>
-                            <p class="description">Consent recorded: <?php echo esc_html( $consent_date ); ?></p>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            </table>
 
             <div id="third-party-disclosure" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;margin:16px 0">
                 <strong>Third-Party Data Disclosure</strong>
@@ -557,19 +472,6 @@ function aifd_render_settings_page() {
                     btn.disabled = false;
                 });
             });
-            </script>
-
-            <script>
-                document.querySelector('form').addEventListener('submit', function() {
-                    const consent = document.querySelector('input[name="aifd_tier2_consent"]');
-                    if ( consent && consent.checked ) {
-                        const hidden = document.createElement('input');
-                        hidden.type  = 'hidden';
-                        hidden.name  = 'aifd_tier2_consent_date';
-                        hidden.value = new Date().toISOString().split('T')[0];
-                        this.appendChild( hidden );
-                    }
-                });
             </script>
 
             <?php submit_button(); ?>

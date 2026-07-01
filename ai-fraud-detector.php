@@ -16,17 +16,6 @@ define( 'AIFD_URL', plugin_dir_url( __FILE__ ) );
 // Your OpenAI API Key
 //define( 'AIFD_OPENAI_KEY', '***REMOVED-OPENAI-KEY***' );
 
-// Plugin loaded successfully
-add_action( 'admin_notices', function() {
-    echo '<div class="notice notice-success">
-        <p>AI Fraud Detector is active! 🛡️</p>
-    </div>';
-});
-
-// add_action('admin_enqueue_scripts', function($hook) {
-//     error_log('Current hook: ' . $hook);
-// });
-
 
 require_once AIFD_PATH . 'includes/providers/class-provider-base.php';
 require_once AIFD_PATH . 'includes/providers/class-provider-openai.php';
