@@ -5,6 +5,9 @@ on:
 
 name: Create and Publish release
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Create Release
