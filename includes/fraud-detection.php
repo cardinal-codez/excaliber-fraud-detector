@@ -54,7 +54,6 @@ function aifd_trip_circuit( $key ) {
 
     if ( $fail_count >= 3 ) {
         set_transient( $key . '_circuit_open', true, 10 * MINUTE_IN_SECONDS );
-        error_log( "AIFD: Circuit breaker tripped for {$key} after {$fail_count} failures" );
     }
 }
 

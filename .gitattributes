@@ -1,0 +1,8 @@
+.* export-ignore
+ROADMAP.MD export-ignore
+ARCHITECTURE.md export-ignore
+README.md export-ignore
+AGENTS.md export-ignore
+package.json export-ignore
+package-lock.json export-ignore
+webpack.config.js export-ignore

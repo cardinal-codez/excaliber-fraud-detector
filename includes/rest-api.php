@@ -62,7 +62,7 @@ function aifd_register_rest_routes() {
 function aifd_ajax_load_seeds() {
 
     // Verify nonce
-    if ( ! wp_verify_nonce( wp_unslash( $_POST['nonce'] ?? '' ), 'aifd_settings_nonce' ) ) {
+    if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
         wp_send_json_error( array( 'message' => 'Security check failed' ) );
     }
 
@@ -370,7 +370,7 @@ add_action( 'wp_ajax_aifd_migrate_patterns', 'aifd_ajax_migrate_patterns' );
 
 function aifd_ajax_migrate_patterns() {
 
-    if ( ! wp_verify_nonce( wp_unslash( $_POST['nonce'] ?? '' ), 'aifd_settings_nonce' ) ) {
+    if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
         wp_send_json_error( array( 'message' => 'Security check failed' ) );
     }
 
@@ -378,8 +378,8 @@ function aifd_ajax_migrate_patterns() {
         wp_send_json_error( array( 'message' => 'Permission denied' ) );
     }
 
-    $from = sanitize_text_field( $_POST['from'] ?? '' );
-    $to   = sanitize_text_field( $_POST['to']   ?? '' );
+    $from = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
+    $to   = sanitize_text_field( wp_unslash( $_POST['to']   ?? '' ) );
 
     if ( empty( $from ) || empty( $to ) ) {
         wp_send_json_error( array( 'message' => 'Missing provider information' ) );
@@ -402,7 +402,7 @@ add_action( 'wp_ajax_aifd_dismiss_migration', 'aifd_ajax_dismiss_migration' );
 
 function aifd_ajax_dismiss_migration() {
 
-    if ( ! wp_verify_nonce( wp_unslash( $_POST['nonce'] ?? '' ), 'aifd_settings_nonce' ) ) {
+    if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
         wp_send_json_error( array( 'message' => 'Security check failed' ) );
     }
 

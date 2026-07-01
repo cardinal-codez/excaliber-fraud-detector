@@ -1,8 +1,8 @@
-=== AI Fraud Detector for WooCommerce ===
+=== AI Fraud Detector ===
 Contributors: dilruba
 Tags: fraud, woocommerce, security, ai, vector search
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 7
 Requires PHP: 8.0
 Stable tag: 1.0.0
 License: GPLv2 or later
@@ -57,8 +57,8 @@ If neither optional layer is enabled, no order data leaves your site.
 1. Upload and activate the plugin.
 2. Local fraud scoring is active immediately — no setup required.
 3. (Optional) Go to Fraud Detector → Settings to enable Vector Memory
-   or AI Reasoning. Each requires an API key and an explicit consent
-   checkbox before it activates.
+   or AI Reasoning. Each activates only once you enter its API key;
+   leave the key blank to keep the layer off.
 
 == Frequently Asked Questions ==
 
@@ -71,8 +71,13 @@ The plugin automatically falls back to local scoring. Orders are
 never blocked or delayed by a third-party outage.
 
 = Is customer data shared with anyone by default? =
-No. Data is only sent to third parties if you explicitly enable and
-consent to the optional Vector Memory or AI Reasoning layers.
+No. Out of the box, all scoring runs locally on your own server and no
+order data leaves your site. Data is sent to a third party only after you
+enter that service's API key in Settings to activate an optional layer —
+the Vector Memory layer (Pinecone) or the AI Reasoning layer (OpenAI,
+Anthropic, or Google Gemini). Leave those key fields blank and nothing is
+shared; clearing a key turns that layer off again. The Ollama reasoning
+option runs locally and shares nothing.
 
 == Changelog ==
 
