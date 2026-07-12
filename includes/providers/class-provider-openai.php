@@ -40,7 +40,14 @@ class AIFD_Provider_OpenAI extends AIFD_Provider_Base {
             return $this->fallback( 'Request failed' );
         }
 
-        $data    = json_decode( wp_remote_retrieve_body( $response ), true );
+        $code = wp_remote_retrieve_response_code( $response );
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( $code < 200 || $code >= 300 ) {
+            $api_error = $data['error']['message'] ?? 'HTTP ' . $code;
+            return $this->fallback( 'API error: ' . $api_error );
+        }
+
         $content = $data['choices'][0]['message']['content'] ?? '';
 
         return $this->parse_response( $content );

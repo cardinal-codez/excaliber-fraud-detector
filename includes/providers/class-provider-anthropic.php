@@ -38,7 +38,14 @@ class AIFD_Provider_Anthropic extends AIFD_Provider_Base {
             return $this->fallback( 'Request failed' );
         }
 
-        $data    = json_decode( wp_remote_retrieve_body( $response ), true );
+        $code = wp_remote_retrieve_response_code( $response );
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( $code < 200 || $code >= 300 ) {
+            $api_error = $data['error']['message'] ?? 'HTTP ' . $code;
+            return $this->fallback( 'API error: ' . $api_error );
+        }
+
         $content = $data['content'][0]['text'] ?? '';
 
         return $this->parse_response( $content );

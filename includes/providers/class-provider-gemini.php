@@ -8,7 +8,13 @@ class AIFD_Provider_Gemini extends AIFD_Provider_Base {
     public function call( $prompt ) {
 
         $api_key = get_option( 'aifd_gemini_key', '' );
-        $model   = get_option( 'aifd_gemini_model', 'gemini-1.5-flash' );
+        $model   = get_option( 'aifd_gemini_model', 'gemini-2.5-flash' );
+
+        // Google retired the Gemini 1.5 models — remap any stored 1.5 value
+        // so existing installs keep working without re-saving settings.
+        if ( strpos( $model, 'gemini-1.5' ) === 0 ) {
+            $model = 'gemini-2.5-flash';
+        }
 
         if ( empty( $api_key ) ) {
             return $this->fallback( 'API key not configured' );
@@ -41,7 +47,14 @@ class AIFD_Provider_Gemini extends AIFD_Provider_Base {
             return $this->fallback( 'Request failed' );
         }
 
-        $data    = json_decode( wp_remote_retrieve_body( $response ), true );
+        $code = wp_remote_retrieve_response_code( $response );
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( $code < 200 || $code >= 300 ) {
+            $api_error = $data['error']['message'] ?? 'HTTP ' . $code;
+            return $this->fallback( 'API error: ' . $api_error );
+        }
+
         $content = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
         return $this->parse_response( $content );

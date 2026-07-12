@@ -76,7 +76,7 @@ function aifd_register_settings() {
     ));
     register_setting( 'aifd_settings', 'aifd_gemini_model', array(
         'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'gemini-1.5-flash'
+        'default'           => 'gemini-2.5-flash'
     ));
 
     // Ollama
@@ -275,8 +275,9 @@ function aifd_render_settings_page() {
                     <th scope="row"><?php esc_html_e( 'Model', 'ai-fraud-detector' ); ?></th>
                     <td>
                         <select name="aifd_gemini_model">
-                            <option value="gemini-1.5-flash" <?php selected( get_option( 'aifd_gemini_model' ), 'gemini-1.5-flash' ); ?>><?php esc_html_e( 'Gemini 1.5 Flash (recommended)', 'ai-fraud-detector' ); ?></option>
-                            <option value="gemini-1.5-pro" <?php selected( get_option( 'aifd_gemini_model' ), 'gemini-1.5-pro' ); ?>>Gemini 1.5 Pro</option>
+                            <option value="gemini-2.5-flash" <?php selected( get_option( 'aifd_gemini_model' ), 'gemini-2.5-flash' ); ?>><?php esc_html_e( 'Gemini 2.5 Flash (recommended)', 'ai-fraud-detector' ); ?></option>
+                            <option value="gemini-2.5-pro" <?php selected( get_option( 'aifd_gemini_model' ), 'gemini-2.5-pro' ); ?>>Gemini 2.5 Pro</option>
+                            <option value="gemini-2.0-flash" <?php selected( get_option( 'aifd_gemini_model' ), 'gemini-2.0-flash' ); ?>>Gemini 2.0 Flash</option>
                         </select>
                     </td>
                 </tr>
