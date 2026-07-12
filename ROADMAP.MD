@@ -1,4 +1,4 @@
-# AI Fraud Detector — Development Roadmap
+# Vigilo — Development Roadmap
 
 ## Phase 1 — Foundation (Complete ✅)
 

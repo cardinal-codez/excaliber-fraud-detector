@@ -1,4 +1,4 @@
-=== AI Fraud Detector Engine for Ecommerce ===
+=== Vigilo AI Fraud Detector ===
 Contributors: dilrubaummer
 Tags: fraud, woocommerce, security, ai, vector search
 Requires at least: 6.0
@@ -13,7 +13,7 @@ signal scoring — optional AI and vector search layers available.
 
 == Description ==
 
-AI Fraud Detector scores every WooCommerce order against 17 weighted
+Vigilo scores every WooCommerce order against 17 weighted
 fraud signals (disposable emails, address mismatches, card testing
 patterns, and more) the moment it's placed. The local scoring engine
 is pure PHP, requires no setup, and sends no data anywhere — it works

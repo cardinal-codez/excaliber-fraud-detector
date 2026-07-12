@@ -7,11 +7,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 add_action('admin_menu', 'aifd_register_menu');
 
 function aifd_register_menu() {
-    add_menu_page(
-        __( 'AI Fraud Detector', 'ai-fraud-detector' ),
-        __( 'Fraud Detector', 'ai-fraud-detector' ),
+    // Hook suffix is derived from the menu title, so capture it rather than
+    // hardcoding it — a rename would otherwise silently stop the enqueues.
+    $GLOBALS['aifd_dashboard_hook'] = add_menu_page(
+        __( 'Vigilo AI Fraud Detector', 'vigilo-ai-fraud-detector' ),
+        __( 'Vigilo', 'vigilo-ai-fraud-detector' ),
         'manage_options',
-        'ai-fraud-detector',
+        'vigilo-ai-fraud-detector',
         'aifd_render_dashboard',
         'dashicons-shield',
         56
@@ -27,7 +29,7 @@ function aifd_render_dashboard() {
 add_action( 'admin_enqueue_scripts', 'aifd_enqueue_react' );
 
 function aifd_enqueue_react( $hook ) {
-    if ( $hook !== 'toplevel_page_ai-fraud-detector' ) return;
+    if ( $hook !== ( $GLOBALS['aifd_dashboard_hook'] ?? '' ) ) return;
 
     $asset_file = include AIFD_PATH. 'build/index.asset.php';
 

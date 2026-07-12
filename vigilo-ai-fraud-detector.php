@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: AI Fraud Detector Engine for Ecommerce
- * Plugin URI: https://github.com/dilrubaummer/ai-fraud-detector
+ * Plugin Name: Vigilo AI Fraud Detector
+ * Plugin URI: https://github.com/dilrubaummer/vigilo-ai-fraud-detector
  * Description: Real-time fraud detection for WooCommerce. Local signal scoring out of the box, with optional AI and vector search layers.
  * Version: 1.0.0
  * Author: Dilruba
@@ -10,7 +10,7 @@
  * Requires Plugins: woocommerce
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: ai-fraud-detector
+ * Text Domain: vigilo-ai-fraud-detector
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -25,7 +25,7 @@ require_once AIFD_PATH . 'includes/providers/class-provider-anthropic.php';
 require_once AIFD_PATH . 'includes/providers/class-provider-gemini.php';
 require_once AIFD_PATH . 'includes/providers/class-provider-ollama.php';
 
-// In ai-fraud-detector.php
+// In vigilo-ai-fraud-detector.php
 require_once plugin_dir_path(__FILE__) . 'includes/rest-api.php';
 require_once plugin_dir_path(__FILE__) . 'includes/fraud-detection.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin-menu.php';

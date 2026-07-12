@@ -203,7 +203,7 @@ class AIFD_Pinecone {
         $embeddings = new AIFD_Embeddings();
 
         if ( ! $pinecone->is_configured() ) {
-            return array( 'success' => false, 'message' => __( 'Pinecone not configured', 'ai-fraud-detector' ) );
+            return array( 'success' => false, 'message' => __( 'Pinecone not configured', 'vigilo-ai-fraud-detector' ) );
         }
 
         $merchant_id    = get_current_blog_id();
@@ -246,7 +246,7 @@ class AIFD_Pinecone {
         return array(
             'success'  => true,
             /* translators: 1: number of migrated patterns, 2: new provider name */
-            'message'  => sprintf( __( 'Migration complete. Seeds loaded + %1$d confirmed patterns migrated to %2$s namespace.', 'ai-fraud-detector' ), $migrated, $to_provider ),
+            'message'  => sprintf( __( 'Migration complete. Seeds loaded + %1$d confirmed patterns migrated to %2$s namespace.', 'vigilo-ai-fraud-detector' ), $migrated, $to_provider ),
             'migrated' => $migrated,
         );
 

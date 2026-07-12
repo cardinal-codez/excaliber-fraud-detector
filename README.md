@@ -1,4 +1,4 @@
-# AI Fraud Detector for WooCommerce
+# Vigilo — AI Fraud Detection for WooCommerce
 
 > Production-grade AI-powered fraud detection plugin 
 > for WooCommerce using OpenAI function calling, 
@@ -8,7 +8,7 @@
 
 ## What It Does
 
-AI Fraud Detector analyzes every WooCommerce order 
+Vigilo analyzes every WooCommerce order 
 in real-time using an autonomous AI agent. 
 The agent evaluates 17 weighted fraud signals, 
 searches a vector database of known fraud patterns, 

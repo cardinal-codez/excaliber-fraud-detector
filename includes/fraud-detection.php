@@ -106,7 +106,7 @@ function aifd_catch_new_order( $order_id ) {
         'risk_score' => $risk_result['risk_score'],
         'risk_level' => $risk_result['risk_level'],
         'decision'   => $risk_result['decision'],
-        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: __( 'No risk signals detected.', 'ai-fraud-detector' ),
+        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: __( 'No risk signals detected.', 'vigilo-ai-fraud-detector' ),
         'source'     => 'local_rules',
     );
 
@@ -538,23 +538,23 @@ function aifd_calculate_risk_score( $signals ) {
     $fired_signals = array();
 
     $signal_map = array(
-        'card_testing_pattern'   => __( 'Card testing pattern detected', 'ai-fraud-detector' ),
-        'disposable_email'       => __( 'Disposable or suspicious email', 'ai-fraud-detector' ),
-        'high_velocity'          => __( 'High order velocity from same customer', 'ai-fraud-detector' ),
-        'address_mismatch'       => __( 'Billing and shipping country mismatch', 'ai-fraud-detector' ),
-        'freight_forwarder'      => __( 'Shipping to freight forwarder address', 'ai-fraud-detector' ),
-        'chargeback_history'     => __( 'Customer has previous chargeback history', 'ai-fraud-detector' ),
-        'first_order_high_value' => __( 'High value first order from new customer', 'ai-fraud-detector' ),
-        'ip_proxy_vpn'           => __( 'Order placed via VPN or proxy', 'ai-fraud-detector' ),
-        'risky_country_combo'    => __( 'High-risk billing/shipping country combination', 'ai-fraud-detector' ),
-        'mismatched_names'       => __( 'Billing and shipping names differ', 'ai-fraud-detector' ),
-        'no_phone_number'        => __( 'No phone number provided', 'ai-fraud-detector' ),
-        'payment_method_risk'    => __( 'Risky payment method used', 'ai-fraud-detector' ),
-        'multiple_addresses'     => __( 'Multiple shipping addresses for same email', 'ai-fraud-detector' ),
-        'order_total_anomaly'    => __( 'Order value far above store average', 'ai-fraud-detector' ),
-        'odd_hours'              => __( 'Order placed between midnight and 5am', 'ai-fraud-detector' ),
-        'guest_checkout'         => __( 'Guest checkout — no account created', 'ai-fraud-detector' ),
-        'new_account'            => __( 'Account created less than 24 hours ago', 'ai-fraud-detector' ),
+        'card_testing_pattern'   => __( 'Card testing pattern detected', 'vigilo-ai-fraud-detector' ),
+        'disposable_email'       => __( 'Disposable or suspicious email', 'vigilo-ai-fraud-detector' ),
+        'high_velocity'          => __( 'High order velocity from same customer', 'vigilo-ai-fraud-detector' ),
+        'address_mismatch'       => __( 'Billing and shipping country mismatch', 'vigilo-ai-fraud-detector' ),
+        'freight_forwarder'      => __( 'Shipping to freight forwarder address', 'vigilo-ai-fraud-detector' ),
+        'chargeback_history'     => __( 'Customer has previous chargeback history', 'vigilo-ai-fraud-detector' ),
+        'first_order_high_value' => __( 'High value first order from new customer', 'vigilo-ai-fraud-detector' ),
+        'ip_proxy_vpn'           => __( 'Order placed via VPN or proxy', 'vigilo-ai-fraud-detector' ),
+        'risky_country_combo'    => __( 'High-risk billing/shipping country combination', 'vigilo-ai-fraud-detector' ),
+        'mismatched_names'       => __( 'Billing and shipping names differ', 'vigilo-ai-fraud-detector' ),
+        'no_phone_number'        => __( 'No phone number provided', 'vigilo-ai-fraud-detector' ),
+        'payment_method_risk'    => __( 'Risky payment method used', 'vigilo-ai-fraud-detector' ),
+        'multiple_addresses'     => __( 'Multiple shipping addresses for same email', 'vigilo-ai-fraud-detector' ),
+        'order_total_anomaly'    => __( 'Order value far above store average', 'vigilo-ai-fraud-detector' ),
+        'odd_hours'              => __( 'Order placed between midnight and 5am', 'vigilo-ai-fraud-detector' ),
+        'guest_checkout'         => __( 'Guest checkout — no account created', 'vigilo-ai-fraud-detector' ),
+        'new_account'            => __( 'Account created less than 24 hours ago', 'vigilo-ai-fraud-detector' ),
     );
 
     foreach ( $signal_map as $signal => $description ) {
@@ -825,22 +825,22 @@ function aifd_update_order_status( $order_id, $ai_result, $risk_result ) {
     if ( $decision === 'BLOCK' ) {
         $order->update_status( 'on-hold',
             /* translators: %d: fraud risk score out of 100 */
-            sprintf( __( 'AI Fraud Detector: HIGH RISK blocked. Score: %d/100.', 'ai-fraud-detector' ), $score ) );
+            sprintf( __( 'Vigilo: HIGH RISK blocked. Score: %d/100.', 'vigilo-ai-fraud-detector' ), $score ) );
         $order->add_order_note(
             /* translators: 1: fraud risk score out of 100, 2: reason for the decision */
-            '🚨 ' . sprintf( __( 'FRAUD ALERT: Blocked by AI Fraud Detector. Score: %1$d/100. Reason: %2$s', 'ai-fraud-detector' ), $score, $reason ),
+            '🚨 ' . sprintf( __( 'FRAUD ALERT: Blocked by Vigilo. Score: %1$d/100. Reason: %2$s', 'vigilo-ai-fraud-detector' ), $score, $reason ),
             false
         );
     } elseif ( $decision === 'REVIEW' ) {
         $order->add_order_note(
             /* translators: 1: fraud risk score out of 100, 2: reason for the decision */
-            '⚠️ ' . sprintf( __( 'FRAUD WARNING: Flagged for review. Score: %1$d/100. Reason: %2$s', 'ai-fraud-detector' ), $score, $reason ),
+            '⚠️ ' . sprintf( __( 'FRAUD WARNING: Flagged for review. Score: %1$d/100. Reason: %2$s', 'vigilo-ai-fraud-detector' ), $score, $reason ),
             false
         );
     } else {
         $order->add_order_note(
             /* translators: %d: fraud risk score out of 100 */
-            '✅ ' . sprintf( __( 'FRAUD CHECK PASSED. Score: %d/100.', 'ai-fraud-detector' ), $score ),
+            '✅ ' . sprintf( __( 'FRAUD CHECK PASSED. Score: %d/100.', 'vigilo-ai-fraud-detector' ), $score ),
             false
         );
     }
@@ -866,23 +866,23 @@ function aifd_send_alert_email( $order_id, $ai_result ) {
 
     $subject = $decision === 'BLOCK'
         /* translators: 1: order ID, 2: fraud risk score out of 100 */
-        ? '🚨 ' . sprintf( __( 'FRAUD ALERT: Order #%1$d Blocked — Score %2$d/100', 'ai-fraud-detector' ), $order_id, $score )
+        ? '🚨 ' . sprintf( __( 'FRAUD ALERT: Order #%1$d Blocked — Score %2$d/100', 'vigilo-ai-fraud-detector' ), $order_id, $score )
         /* translators: 1: order ID, 2: fraud risk score out of 100 */
-        : '⚠️ ' . sprintf( __( 'FRAUD WARNING: Order #%1$d Needs Review — Score %2$d/100', 'ai-fraud-detector' ), $order_id, $score );
+        : '⚠️ ' . sprintf( __( 'FRAUD WARNING: Order #%1$d Needs Review — Score %2$d/100', 'vigilo-ai-fraud-detector' ), $order_id, $score );
 
-    $message  = __( 'AI Fraud Detector has flagged an order.', 'ai-fraud-detector' ) . "\n\n";
-    $message .= __( 'Order ID:', 'ai-fraud-detector' ) . "    #" . $order_id . "\n";
-    $message .= __( 'Decision:', 'ai-fraud-detector' ) . "    " . $decision . "\n";
-    $message .= __( 'Risk Score:', 'ai-fraud-detector' ) . "  " . $score . "/100\n";
-    $message .= __( 'AI Provider:', 'ai-fraud-detector' ) . " " . strtoupper( $provider ) . "\n";
-    $message .= __( 'Reason:', 'ai-fraud-detector' ) . "      " . $reason . "\n\n";
-    $message .= __( 'Customer:', 'ai-fraud-detector' ) . "    " . $order->get_billing_first_name() . " " . $order->get_billing_last_name() . "\n";
-    $message .= __( 'Email:', 'ai-fraud-detector' ) . "       " . $order->get_billing_email() . "\n";
-    $message .= __( 'Total:', 'ai-fraud-detector' ) . "       " . $order->get_currency() . " " . $order->get_total() . "\n";
-    $message .= __( 'Billing:', 'ai-fraud-detector' ) . "     " . $order->get_billing_country() . "\n";
-    $message .= __( 'Shipping:', 'ai-fraud-detector' ) . "    " . $order->get_shipping_country() . "\n\n";
-    $message .= __( 'View Order:', 'ai-fraud-detector' ) . "  " . admin_url( 'post.php?post=' . $order_id . '&action=edit' ) . "\n\n";
-    $message .= "---\n" . __( 'AI Fraud Detector Plugin', 'ai-fraud-detector' ) . "\n";
+    $message  = __( 'Vigilo has flagged an order.', 'vigilo-ai-fraud-detector' ) . "\n\n";
+    $message .= __( 'Order ID:', 'vigilo-ai-fraud-detector' ) . "    #" . $order_id . "\n";
+    $message .= __( 'Decision:', 'vigilo-ai-fraud-detector' ) . "    " . $decision . "\n";
+    $message .= __( 'Risk Score:', 'vigilo-ai-fraud-detector' ) . "  " . $score . "/100\n";
+    $message .= __( 'AI Provider:', 'vigilo-ai-fraud-detector' ) . " " . strtoupper( $provider ) . "\n";
+    $message .= __( 'Reason:', 'vigilo-ai-fraud-detector' ) . "      " . $reason . "\n\n";
+    $message .= __( 'Customer:', 'vigilo-ai-fraud-detector' ) . "    " . $order->get_billing_first_name() . " " . $order->get_billing_last_name() . "\n";
+    $message .= __( 'Email:', 'vigilo-ai-fraud-detector' ) . "       " . $order->get_billing_email() . "\n";
+    $message .= __( 'Total:', 'vigilo-ai-fraud-detector' ) . "       " . $order->get_currency() . " " . $order->get_total() . "\n";
+    $message .= __( 'Billing:', 'vigilo-ai-fraud-detector' ) . "     " . $order->get_billing_country() . "\n";
+    $message .= __( 'Shipping:', 'vigilo-ai-fraud-detector' ) . "    " . $order->get_shipping_country() . "\n\n";
+    $message .= __( 'View Order:', 'vigilo-ai-fraud-detector' ) . "  " . admin_url( 'post.php?post=' . $order_id . '&action=edit' ) . "\n\n";
+    $message .= "---\n" . __( 'Vigilo Plugin', 'vigilo-ai-fraud-detector' ) . "\n";
 
     wp_mail( $admin_email, $subject, $message );
 
@@ -1102,7 +1102,7 @@ function aifd_enforce_block_status( $order_id, $old_status, $new_status ) {
         $order->update_status(
             'on-hold',
             /* translators: %d: fraud risk score out of 100 */
-            '🚨 ' . sprintf( __( 'AI Fraud Detector: Order blocked (score: %d/100). Payment gateway override prevented.', 'ai-fraud-detector' ), (int) $order->get_meta( '_aifd_risk_score' ) )
+            '🚨 ' . sprintf( __( 'Vigilo: Order blocked (score: %d/100). Payment gateway override prevented.', 'vigilo-ai-fraud-detector' ), (int) $order->get_meta( '_aifd_risk_score' ) )
         );
 
         $order->save();
@@ -1123,7 +1123,7 @@ function aifd_enforce_block_on_payment( $order_id ) {
 
         $order->update_status(
             'on-hold',
-            '🚨 ' . __( 'AI Fraud Detector: Payment received but order blocked due to HIGH fraud risk.', 'ai-fraud-detector' )
+            '🚨 ' . __( 'Vigilo: Payment received but order blocked due to HIGH fraud risk.', 'vigilo-ai-fraud-detector' )
         );
 
         $order->save();
@@ -1184,6 +1184,6 @@ function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result )
     $log_entry .= "📊 SIGNALS:\n";
     $log_entry .= wp_json_encode( $signals, JSON_PRETTY_PRINT );
 
-    wc_get_logger()->info( $log_entry, array( 'source' => 'ai-fraud-detector' ) );
+    wc_get_logger()->info( $log_entry, array( 'source' => 'vigilo-ai-fraud-detector' ) );
 
 }
