@@ -22,6 +22,28 @@ Orders are automatically:
 
 ---
 
+## Local-First by Design
+
+Fraud scoring should never be the reason a checkout fails. The plugin
+runs in three capability tiers, and the bottom one needs nothing at all:
+
+| Tier | What it does | Default | Requires |
+| --- | --- | --- | --- |
+| **0 — Local** | 17 weighted signals, pure PHP | Always on | Nothing |
+| **1 — Vector Memory** | Pinecone similarity search | Off | Pinecone key + host |
+| **2 — AI Reasoning** | Function-calling agent | Off | Provider API key |
+
+Every external call is wrapped in a circuit breaker: after three
+consecutive failures a tier disables itself for ten minutes and the
+plugin falls back to the tier below. An OpenAI outage costs you accuracy,
+not orders.
+
+Tiers 1 and 2 are activated by entering an API key, and deactivated by
+clearing it. **On a fresh install with empty key fields, no order data
+leaves your site.**
+
+---
+
 ## Key Features
 
 **🤖 Agentic AI (Function Calling)**
@@ -44,7 +66,7 @@ Weights personalize automatically over time.
 Choose your AI provider:
 - OpenAI (gpt-4o-mini) — default
 - Anthropic (claude-haiku-4-5-20251001)
-- Google Gemini (gemini-1.5-flash)
+- Google Gemini (gemini-2.5-flash)
 - Ollama (local, free, private) ⚠️ VPS only
 
 **📊 Provider-Native Embeddings**
@@ -155,13 +177,22 @@ Merchant feedback → Pinecone learns
 
 ## Installation
 
-1. Upload plugin to `/wp-content/plugins/`
-2. Activate in WordPress admin
-3. Go to **Fraud Detector → Settings**
-4. Enter your AI provider API key
-5. Enter Pinecone API key + host URL
-6. Click **Load 65 Seed Patterns**
-7. Done — every new order is now protected!
+1. Upload the plugin to `/wp-content/plugins/`
+2. Activate it in WordPress admin
+3. Done — every new order is now scored by the local signal engine.
+
+No API key, no account, and no configuration are required to get
+working fraud detection. The AI and vector layers are opt-in:
+
+**To enable Vector Memory (optional)**
+Go to **Fraud Detector → Settings**, enter a Pinecone API key + host
+URL, then click **Load 65 Seed Patterns**.
+
+**To enable AI Reasoning (optional)**
+On the same page, choose a provider and enter its API key — or point
+the plugin at a local Ollama host and pay nothing.
+
+Clearing a key field turns that layer back off.
 
 ---
 
@@ -170,8 +201,17 @@ Merchant feedback → Pinecone learns
 - WordPress 6.0+
 - WooCommerce 7.0+
 - PHP 8.0+
-- OpenAI API key (required for embeddings)
-- Pinecone account (free starter plan works)
+
+That's the whole list. API keys are only needed for the optional layers:
+
+| To use | You need |
+| --- | --- |
+| Local signal scoring (Tier 0) | Nothing — works on activation |
+| Vector memory (Tier 1) | A Pinecone account (free starter plan works) |
+| AI reasoning (Tier 2) | An OpenAI, Anthropic, or Gemini key — or a local Ollama host (free) |
+
+Anthropic users also need a Voyage AI key for embeddings, since
+Anthropic does not offer an embedding model of its own.
 
 ---
 
@@ -179,22 +219,38 @@ Merchant feedback → Pinecone learns
 
 - [x] WooCommerce integration
 - [x] 17 fraud signal extraction
-- [x] Multi-provider AI (OpenAI/Anthropic/Gemini/Ollama)
+- [x] Multi-provider AI (OpenAI / Anthropic / Gemini / Ollama)
 - [x] Provider-native embeddings
 - [x] Pinecone vector store (namespaced)
 - [x] Function calling agent
 - [x] React dashboard
 - [x] Feedback loop
 - [x] Per-merchant weight personalization
+- [x] Local-first capability tiers + circuit breakers
+- [ ] Unit tests for signal extraction and risk scoring
+- [ ] WordPress.org submission
 - [ ] Easy Digital Downloads (EDD)
 - [ ] SureCart
 - [ ] Shopify (Python + FastAPI + Azure)
-- [ ] WordPress.org submission
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design document.
+
+---
+
+## Security
+
+API keys are stored as standard WordPress options, in plaintext — the
+same as most WordPress plugins. See the Security Considerations section
+of [ARCHITECTURE.md](ARCHITECTURE.md#security-considerations) for what
+that does and does not protect against.
+
+Found a vulnerability? Please see [SECURITY.md](SECURITY.md) — do not
+open a public issue.
 
 ---
 
 ## License
 
-GPL v2 or later
+GPL-2.0-or-later. See [LICENSE](LICENSE).
 
 ---

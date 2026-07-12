@@ -1,8 +1,7 @@
 # AI Fraud Detector — Architecture Document
 
-> Version: 3.0.0
-> Last updated: June 2026
-> Status: Active development
+> Plugin version: 1.0.0
+> Last updated: July 2026
 
 ---
 
@@ -55,8 +54,8 @@ gate instead of requiring AI on every order.
 | Tier | What it does | Default | Requires |
 |------|--------------|---------|----------|
 | 0 — Local | 17 weighted signals, pure PHP | Always on | Nothing |
-| 1 — Vector Memory | Pinecone similarity search | Off | Key + consent |
-| 2 — AI Reasoning | Function calling agent | Off | Key + consent |
+| 1 — Vector Memory | Pinecone similarity search | Off | Pinecone key + host |
+| 2 — AI Reasoning | Function calling agent | Off | Provider API key |
 
 Each tier wraps its external calls in a try/catch. A circuit breaker
 trips after 3 consecutive failures and disables that tier for 10
@@ -64,10 +63,30 @@ minutes, falling back to the next tier down. Checkout is never
 blocked by a third-party outage — `aifd_catch_new_order()` always
 returns a usable score from Tier 0 at minimum.
 
-This separation also satisfies WordPress.org's requirement that
-plugins not contact external servers without explicit user consent —
-Tiers 1 and 2 require both an enabled checkbox and a separate consent
-checkbox before any external request is made.
+### How a tier is activated
+
+**The API key field is the switch.** There is no separate enable or
+consent checkbox — `aifd_tier1_ready()` and `aifd_tier2_ready()` gate
+purely on whether the relevant key (and host, for Pinecone and Ollama)
+is present, and on whether that tier's circuit breaker is currently
+open:
+
+```php
+function aifd_tier1_ready() {
+    if ( ! get_option( 'aifd_pinecone_key' ) )  return false;
+    if ( ! get_option( 'aifd_pinecone_host' ) ) return false;
+    if ( get_transient( 'aifd_pinecone_circuit_open' ) ) return false;
+    return true;
+}
+```
+
+Entering a key is the merchant's affirmative act of enabling that tier;
+clearing the field turns it off again and the plugin falls back to
+Tier 0. This is what satisfies WordPress.org's requirement that a plugin
+not contact external servers without user action — a fresh install with
+empty key fields makes no outbound request at all. The services
+contacted, and the data sent to each, are disclosed in `readme.txt`.
+
 ---
 
 ## Multi-Provider AI Architecture
@@ -88,7 +107,7 @@ $result   = aifd_call_provider($signals);
 |----------|--------------|-----------------|------------|-------------|
 | OpenAI | gpt-4o-mini | text-embedding-3-small | 1536 | OpenAI only |
 | Anthropic | claude-haiku-4-5-20251001 | voyage-3 (Voyage AI) | 1024 | Anthropic + Voyage ⚠️ |
-| Google Gemini | gemini-1.5-flash | text-embedding-004 | 768 | Gemini only |
+| Google Gemini | gemini-2.5-flash | text-embedding-004 | 768 | Gemini only |
 | Ollama | llama3 / any | nomic-embed-text | 768 | None (free, local) |
 
 ### Provider File Structure
@@ -345,7 +364,7 @@ REVIEW is the most valuable state. False positives cost merchants more than frau
 
 ---
 
-## AI Function Calling (Day 19)
+## AI Function Calling
 
 OpenAI and Anthropic both support function calling natively. The agent autonomously decides which tools to call:
 
@@ -515,7 +534,7 @@ Anthropic Settings
 
 Google Gemini Settings
 ├── API Key (used for scoring + embeddings)
-└── Model: gemini-1.5-flash | gemini-1.5-pro
+└── Model: gemini-2.5-flash | gemini-2.5-pro | gemini-2.0-flash
 
 Ollama Settings
 ├── Host URL (default: http://localhost:11434)
@@ -544,7 +563,7 @@ Risk Thresholds
 | REST API | WordPress REST API |
 | AI scoring (OpenAI) | GPT-4o-mini (function calling) |
 | AI scoring (Anthropic) | claude-haiku-4-5-20251001 (tool use) |
-| AI scoring (Gemini) | gemini-1.5-flash (function declarations) |
+| AI scoring (Gemini) | gemini-2.5-flash (function declarations) |
 | AI scoring (local) | Ollama (any model, free, private) |
 | Embeddings (OpenAI) | text-embedding-3-small (1536d) |
 | Embeddings (Anthropic) | voyage-3 via Voyage AI (1024d) |
@@ -559,107 +578,178 @@ Risk Thresholds
 
 ```
 ai-fraud-detector/
-├── ai-fraud-detector.php              # Main plugin file
-├── ARCHITECTURE.md                    # This document
-├── ROADMAP.md                         # Development roadmap
-├── package.json                       # Node dependencies
+├── ai-fraud-detector.php                # Main plugin file — constants + requires
+├── readme.txt                           # WordPress.org readme (ships in the zip)
+├── README.md                            # GitHub readme (dev-only, export-ignored)
+├── ARCHITECTURE.md                      # This document (dev-only, export-ignored)
+├── ROADMAP.MD                           # Development roadmap (dev-only)
+├── LICENSE                              # GPL-2.0-or-later
+├── SECURITY.md                          # Vulnerability reporting policy
+├── package.json                         # Node dependencies (dev-only)
 ├── includes/
-│   ├── fraud-detection.php            # Signal extraction + scoring
-│   ├── rest-api.php                   # REST API + AJAX handlers
-│   ├── admin-menu.php                 # Admin menu + React loader
-│   ├── settings-page.php              # Settings page + registration
-│   ├── class-embeddings.php           # Embedding abstraction layer
-│   ├── class-pinecone.php             # Pinecone integration
-│   ├── class-seed-loader.php          # Seed pattern loader
+│   ├── fraud-detection.php              # Signal extraction, scoring, order actions
+│   ├── rest-api.php                     # REST API + AJAX handlers
+│   ├── admin-menu.php                   # Admin menu + React loader
+│   ├── settings-page.php                # Settings page + registration
+│   ├── class-embeddings.php             # Embedding abstraction layer
+│   ├── class-pinecone.php               # Pinecone integration
+│   ├── class-seed-loader.php            # Seed pattern loader
+│   ├── class-function-calling.php       # Function-calling agent + tool defs
 │   └── providers/
-│       ├── class-provider-base.php    # Shared interface
-│       ├── class-provider-openai.php  # OpenAI
+│       ├── class-provider-base.php      # Shared interface
+│       ├── class-provider-openai.php    # OpenAI
 │       ├── class-provider-anthropic.php # Anthropic
-│       ├── class-provider-gemini.php  # Google Gemini
-│       └── class-provider-ollama.php  # Local Ollama
+│       ├── class-provider-gemini.php    # Google Gemini
+│       └── class-provider-ollama.php    # Local Ollama
 ├── admin/
-│   └── dashboard.php                  # React mount point
+│   └── dashboard.php                    # React mount point
 ├── src/
-│   └── index.js                       # React dashboard
-├── build/                             # Compiled React
+│   └── index.js                         # React dashboard
+├── build/                               # Compiled React (ships in the zip)
 └── data/
-    └── seed-patterns.json             # 65 seed patterns
+    └── seed-patterns.json               # 65 seed patterns
 ```
+
+The release zip is produced by `git archive`, so anything marked
+`export-ignore` in `.gitattributes` (this file, `README.md`,
+`ROADMAP.MD`, `package.json`, build config) is stripped from what
+merchants actually install.
 
 ---
 
 ## Development Roadmap
 
 ### Phase 1 — Foundation (Complete ✅)
+
 - [x] WooCommerce order capture
 - [x] 17 fraud signal extraction
 - [x] Weighted rule scoring
-- [x] OpenAI basic scoring
 - [x] Auto flag + email alerts
 - [x] React dashboard
 - [x] WordPress REST API
-- [x] Multi-provider architecture
+- [x] Multi-provider architecture (OpenAI / Anthropic / Gemini / Ollama)
 - [x] Settings page
 
-### Phase 2 — Production AI (In Progress 🔥)
+### Phase 2 — Production AI (Complete ✅)
+
 - [x] 65 seed patterns created
 - [x] chargeback_history signal #17
 - [x] Pinecone account + index setup
-- [x] Initial seed load (OpenAI namespace)
-- [ ] Embedding abstraction layer (Day 16)
-- [ ] Re-seed per provider namespace (Day 17)
-- [ ] Connect Pinecone to scoring pipeline (Day 18)
-- [ ] Function calling replaces basic prompt (Day 19)
-- [ ] Test function calling end to end (Day 20)
-- [ ] Feedback loop UI (Day 21)
-- [ ] Feedback loop saves to Pinecone (Day 22)
-- [ ] Per-merchant weight personalization (Day 23)
-- [ ] End to end testing (Day 24)
-- [ ] Bug fixes (Day 25)
-- [ ] README + ARCHITECTURE.md update (Day 26)
-- [ ] GitHub cleanup, portfolio ready (Day 27)
+- [x] Embedding abstraction layer
+- [x] Per-provider namespace seeding
+- [x] Pinecone wired into the scoring pipeline
+- [x] Function calling agent replaces basic prompting
+- [x] Feedback loop UI (Confirm Fraud / Override)
+- [x] Feedback loop persists confirmed patterns to Pinecone
+- [x] Per-merchant weight personalization
+- [x] Local-first capability tiers + circuit breakers
 
-### Phase 3 — Platform Expansion (Planned)
-- [ ] EDD integration
-- [ ] SureCart integration
-- [ ] Shopify webhook + Python API on Azure
+### Phase 3 — Hardening (Next)
+
+- [ ] Unit tests for signal extraction and risk scoring
+- [ ] Split `fraud-detection.php` by responsibility
 - [ ] WordPress.org submission
 
-### Phase 4 — Growth (Future)
+### Phase 4 — Platform Expansion (Planned)
+
+- [ ] Easy Digital Downloads integration
+- [ ] SureCart integration
+- [ ] Shopify webhook + Python API on Azure
+
+### Phase 5 — Growth (Future)
+
 - [ ] Community pattern sharing (opt-in, anonymized)
 - [ ] Analytics and reporting
-- [ ] White label option
-- [ ] SaaS pricing model
 
 ---
 
 ## Security Considerations
 
-- All API keys stored in wp_options (encrypted)
-- All REST API endpoints require manage_options capability
-- Nonce verification on all admin actions
-- Input sanitization on all user data
-- No customer PII stored in Pinecone — patterns only
-- GDPR compliant — embeddings contain no personal data
-- Ollama option for strict data sovereignty requirements
-- Voyage AI fallback to OpenAI if key not provided
+### How API keys are stored
+
+Keys are registered through the WordPress Settings API and saved as
+plain options in `wp_options`:
+
+```php
+register_setting( 'aifd_settings', 'aifd_openai_key', array(
+    'sanitize_callback' => 'sanitize_text_field',
+    'default'           => ''
+) );
+```
+
+Saving goes through core's `options.php` handler, which enforces the
+`manage_options` capability and verifies the settings-group nonce
+before any value is written. Each key is run through
+`sanitize_text_field()` on the way in (`esc_url_raw()` for host URLs,
+`absint()` for thresholds).
+
+**The keys are not encrypted at rest.** They are stored as plaintext
+option rows, which is the standard WordPress pattern — an encryption
+key would itself have to live on the same filesystem, so it would add
+obfuscation rather than a real security boundary. The practical
+consequences:
+
+- Anyone with database read access, or with `manage_options` on the
+  site, can recover the keys.
+- The settings page renders the current key into the field's `value`
+  attribute (as `type="password"`, so it is masked visually but present
+  in the page HTML).
+- Keys are therefore only as protected as the WordPress admin account
+  and the database behind it.
+
+Merchants who need stronger guarantees should scope their provider keys
+to the minimum permissions their provider offers, rotate them
+periodically, or run the Ollama tier, which requires no third-party key
+at all.
+
+### Other controls
+
+- All REST endpoints declare a `permission_callback` that checks
+  `current_user_can( 'manage_options' )`.
+- AJAX handlers verify the `aifd_settings_nonce` nonce **and** re-check
+  `manage_options` before acting.
+- All settings input is sanitized on save (see above).
+- Pinecone stores behavior-pattern embeddings and signal metadata — not
+  raw order records, names, addresses, or email addresses.
+
+### Data protection
+
+Tier 0 sends nothing off-site. Tiers 1 and 2 transmit the derived
+pattern text and signal summary to the merchant's chosen provider only
+once that provider's API key has been entered — an empty key field
+means no external request is made. Because the transmitted pattern text
+is a list of signal names (e.g. `disposable_email address_mismatch
+no_phone_number`) plus country codes, it contains no personal data.
+
+This is a design property, not a legal opinion: whether a given
+deployment is GDPR-compliant depends on the merchant's own processing
+and disclosures. Merchants remain the data controller. The Ollama tier
+exists for deployments with strict data-sovereignty requirements.
 
 ---
 
-## Competitive Advantages
+## Design Choices Worth Calling Out
 
-| Feature | Our Plugin | Competitors |
-|---------|-----------|-------------|
-| Multi-provider AI | ✅ 4 providers | ❌ OpenAI only |
-| Provider-native embeddings | ✅ Each provider uses own model | ❌ None |
-| Namespaced vector store | ✅ Per merchant + provider | ❌ None |
-| Local AI option (Ollama) | ✅ Free, private, no API key | ❌ None |
-| Vector memory (Pinecone) | ✅ Learns from fraud history | ❌ None |
-| Per-merchant learning | ✅ Weight personalization | ❌ None |
-| Feedback loop | ✅ Confirm/Override | ❌ None |
-| Seed patterns on install | ✅ 65 patterns day one | ❌ None |
-| Function calling agent | ✅ Agentic AI | ❌ Basic prompts |
-| Multi-platform | ✅ WooCommerce + EDD + SureCart + Shopify | ❌ WooCommerce only |
+The decisions below are the ones that most shape how the plugin behaves,
+and the reasoning behind each:
+
+- **Local-first tiers.** Fraud scoring must never be the reason a
+  checkout fails. Tier 0 is pure PHP and always available, so a provider
+  outage degrades accuracy rather than breaking the store.
+- **Provider-native embeddings.** Mixing embedding models within one
+  vector space makes similarity scores meaningless, so each provider
+  embeds and searches with its own model.
+- **Namespaced vector store.** One namespace per merchant + provider
+  keeps confirmed patterns and false-positive corrections scoped to the
+  merchant who reported them.
+- **Per-merchant weight learning.** A luxury jeweller and a $10 digital
+  download shop have genuinely different fraud profiles; a single set of
+  global weights cannot serve both.
+- **REVIEW as the default middle outcome.** False positives cost
+  merchants more than the fraud they prevent, so the mid-range decision
+  holds an order for a human rather than blocking it outright.
+- **Ollama support.** Gives merchants with data-sovereignty constraints
+  a path that sends nothing to a third party.
 
 ---
 
