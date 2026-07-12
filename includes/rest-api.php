@@ -63,12 +63,12 @@ function aifd_ajax_load_seeds() {
 
     // Verify nonce
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => 'Security check failed' ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'ai-fraud-detector' ) ) );
     }
 
     // Check permissions
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( array( 'message' => 'Permission denied' ) );
+        wp_send_json_error( array( 'message' => __( 'Permission denied', 'ai-fraud-detector' ) ) );
     }
 
     $loader = new AIFD_Seed_Loader();
@@ -83,8 +83,7 @@ function aifd_ajax_load_seeds() {
 }
 
 function aifd_check_permission() {
-    //return current_user_can( 'manage_options' );
-    return true; // For testing purposes, allow all access. Change to above line in production. 
+    return current_user_can( 'manage_options' );
 }
 
 // Stats endpoint
@@ -104,6 +103,9 @@ function aifd_get_stats() {
 // Flagged orders endpoint
 function aifd_get_flagged_orders() {
 
+    if ( ! function_exists( 'wc_get_orders' ) ) {
+        return new WP_Error( 'woocommerce_inactive', __( 'WooCommerce must be active.', 'ai-fraud-detector' ), array( 'status' => 501 ) );
+    }
 
     $orders = wc_get_orders( array(
         'limit'   => 20,
@@ -154,22 +156,26 @@ function aifd_order_action( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', 'Order not found', array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'ai-fraud-detector' ), array( 'status' => 404 ) );
     }
 
     if ( $action === 'approve' ) {
-        $order->update_status( 'processing', 'Manually approved by admin via AI Fraud Detector.' );
+        $order->update_status( 'processing', __( 'Manually approved by admin via AI Fraud Detector.', 'ai-fraud-detector' ) );
         $order->update_meta_data( '_aifd_decision', 'APPROVED' );
+        $message = __( 'Order approved successfully', 'ai-fraud-detector' );
     } elseif ( $action === 'block' ) {
-        $order->update_status( 'cancelled', 'Manually blocked by admin via AI Fraud Detector.' );
+        $order->update_status( 'cancelled', __( 'Manually blocked by admin via AI Fraud Detector.', 'ai-fraud-detector' ) );
         $order->update_meta_data( '_aifd_decision', 'BLOCKED' );
+        $message = __( 'Order blocked successfully', 'ai-fraud-detector' );
+    } else {
+        $message = __( 'No action taken', 'ai-fraud-detector' );
     }
 
     $order->save();
 
     return rest_ensure_response( array(
         'success' => true,
-        'message' => 'Order ' . $action . 'd successfully',
+        'message' => $message,
     ));
 
 }
@@ -181,7 +187,7 @@ function aifd_confirm_fraud( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', 'Order not found', array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'ai-fraud-detector' ), array( 'status' => 404 ) );
     }
 
     // Update review status
@@ -195,11 +201,11 @@ function aifd_confirm_fraud( $request ) {
 
     // Add order note
     $pinecone_note = $saved
-        ? 'Pattern saved to Pinecone vector store — system will recognize this fraud type faster next time.'
-        : 'Note: Pinecone save failed — check API key and configuration.';
+        ? __( 'Pattern saved to Pinecone vector store — system will recognize this fraud type faster next time.', 'ai-fraud-detector' )
+        : __( 'Note: Pinecone save failed — check API key and configuration.', 'ai-fraud-detector' );
 
     $order->add_order_note(
-        '🚨 CONFIRMED FRAUD: Manually confirmed by merchant. ' . $pinecone_note,
+        '🚨 ' . __( 'CONFIRMED FRAUD: Manually confirmed by merchant.', 'ai-fraud-detector' ) . ' ' . $pinecone_note,
         false
     );
     $order->save();
@@ -229,8 +235,8 @@ function aifd_confirm_fraud( $request ) {
     return rest_ensure_response( array(
         'success'         => true,
         'message'         => $saved
-            ? 'Confirmed as fraud. Pattern saved to Pinecone — AI will recognize this faster next time.'
-            : 'Confirmed as fraud. Note: Pinecone save failed — check your API configuration.',
+            ? __( 'Confirmed as fraud. Pattern saved to Pinecone — AI will recognize this faster next time.', 'ai-fraud-detector' )
+            : __( 'Confirmed as fraud. Note: Pinecone save failed — check your API configuration.', 'ai-fraud-detector' ),
         'status'          => 'CONFIRMED_FRAUD',
         'pinecone_saved'  => $saved,
     ));
@@ -244,7 +250,7 @@ function aifd_override_fraud( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', 'Order not found', array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'ai-fraud-detector' ), array( 'status' => 404 ) );
     }
 
     // Get fired signals BEFORE we change anything
@@ -258,11 +264,11 @@ function aifd_override_fraud( $request ) {
     // Release order back to processing
     $order->update_status(
         'processing',
-        '✅ FALSE POSITIVE: Override by merchant — order approved for processing.'
+        '✅ ' . __( 'FALSE POSITIVE: Override by merchant — order approved for processing.', 'ai-fraud-detector' )
     );
 
     $order->add_order_note(
-        '✅ FALSE POSITIVE: Merchant confirmed this is a legitimate order. Signal weights adjusted.',
+        '✅ ' . __( 'FALSE POSITIVE: Merchant confirmed this is a legitimate order. Signal weights adjusted.', 'ai-fraud-detector' ),
         false
     );
 
@@ -281,7 +287,7 @@ function aifd_override_fraud( $request ) {
 
     return rest_ensure_response( array(
         'success' => true,
-        'message' => 'Order approved. Signal weights adjusted to reduce false positives.',
+        'message' => __( 'Order approved. Signal weights adjusted to reduce false positives.', 'ai-fraud-detector' ),
         'status'  => 'FALSE_POSITIVE',
     ));
 
@@ -339,8 +345,9 @@ function aifd_get_weights() {
         'false_positives' => $false_positives,
         'personalized'    => ! empty( $merchant_weights ),
         'calibration'     => $false_positives >= 10
-            ? 'Well calibrated'
-            : 'Still learning (' . $false_positives . '/10 overrides)',
+            ? __( 'Well calibrated', 'ai-fraud-detector' )
+            /* translators: %d: number of merchant overrides so far */
+            : sprintf( __( 'Still learning (%d/10 overrides)', 'ai-fraud-detector' ), $false_positives ),
     ));
 
 }
@@ -352,7 +359,7 @@ function aifd_reset_weights() {
 
     return rest_ensure_response( array(
         'success' => true,
-        'message' => 'Weights reset to global defaults',
+        'message' => __( 'Weights reset to global defaults', 'ai-fraud-detector' ),
     ));
 
 }
@@ -371,18 +378,18 @@ add_action( 'wp_ajax_aifd_migrate_patterns', 'aifd_ajax_migrate_patterns' );
 function aifd_ajax_migrate_patterns() {
 
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => 'Security check failed' ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'ai-fraud-detector' ) ) );
     }
 
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( array( 'message' => 'Permission denied' ) );
+        wp_send_json_error( array( 'message' => __( 'Permission denied', 'ai-fraud-detector' ) ) );
     }
 
     $from = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
     $to   = sanitize_text_field( wp_unslash( $_POST['to']   ?? '' ) );
 
     if ( empty( $from ) || empty( $to ) ) {
-        wp_send_json_error( array( 'message' => 'Missing provider information' ) );
+        wp_send_json_error( array( 'message' => __( 'Missing provider information', 'ai-fraud-detector' ) ) );
     }
 
     $result = aifd_migrate_namespace( $from, $to );
@@ -403,7 +410,7 @@ add_action( 'wp_ajax_aifd_dismiss_migration', 'aifd_ajax_dismiss_migration' );
 function aifd_ajax_dismiss_migration() {
 
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => 'Security check failed' ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'ai-fraud-detector' ) ) );
     }
 
     update_option( 'aifd_provider_switched', array( 'handled' => true ) );
@@ -412,6 +419,6 @@ function aifd_ajax_dismiss_migration() {
     $loader = new AIFD_Seed_Loader();
     $loader->load_seeds();
 
-    wp_send_json_success( array( 'message' => 'Starting fresh with new provider' ) );
+    wp_send_json_success( array( 'message' => __( 'Starting fresh with new provider', 'ai-fraud-detector' ) ) );
 
 }

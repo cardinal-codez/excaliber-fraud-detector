@@ -30,7 +30,7 @@ class AIFD_Seed_Loader {
         if ( ! $this->pinecone->is_configured() ) {
             return array(
                 'success' => false,
-                'message' => 'Pinecone not configured — add API key and host URL first',
+                'message' => __( 'Pinecone not configured — add API key and host URL first', 'ai-fraud-detector' ),
             );
         }
 
@@ -42,7 +42,7 @@ class AIFD_Seed_Loader {
         if ( ! file_exists( $seed_file ) ) {
             return array(
                 'success' => false,
-                'message' => 'seed-patterns.json not found in data/ folder'
+                'message' => __( 'seed-patterns.json not found in data/ folder', 'ai-fraud-detector' )
             );
         }
 
@@ -51,7 +51,7 @@ class AIFD_Seed_Loader {
         if ( empty( $patterns ) ) {
             return array(
                 'success' => false,
-                'message' => 'No patterns found in seed-patterns.json'
+                'message' => __( 'No patterns found in seed-patterns.json', 'ai-fraud-detector' )
             );
         }
 
@@ -100,7 +100,8 @@ class AIFD_Seed_Loader {
 
         return array(
             'success' => true,
-            'message' => "Loaded {$loaded}/{$total} patterns in namespace: {$namespace}. Failed: {$failed}",
+            /* translators: 1: number of patterns loaded, 2: total patterns, 3: Pinecone namespace, 4: number of failures */
+            'message' => sprintf( __( 'Loaded %1$d/%2$d patterns in namespace: %3$s. Failed: %4$d', 'ai-fraud-detector' ), $loaded, $total, $namespace, $failed ),
             'loaded'  => $loaded,
             'failed'  => $failed,
             'total'   => $total,

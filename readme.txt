@@ -1,8 +1,8 @@
-=== AI Fraud Detector ===
-Contributors: dilruba
+=== AI Fraud Detector Engine for Ecommerce ===
+Contributors: dilrubaummer
 Tags: fraud, woocommerce, security, ai, vector search
 Requires at least: 6.0
-Tested up to: 7
+Tested up to: 7.0
 Requires PHP: 8.0
 Stable tag: 1.0.0
 License: GPLv2 or later
@@ -20,7 +20,8 @@ is pure PHP, requires no setup, and sends no data anywhere — it works
 immediately after activation.
 
 For stores that want deeper protection, two optional layers can be
-enabled separately, each requiring explicit consent:
+enabled separately — each stays off until you enter that service's
+API key in Settings:
 
 * **Vector pattern memory** — searches a database of known fraud
   patterns for similarity matches (requires Pinecone account)
@@ -31,8 +32,13 @@ enabled separately, each requiring explicit consent:
 = Third-Party Services & Data Disclosure =
 
 This plugin can optionally connect to the following services. Each
-is **off by default** and requires you to enable it and confirm
-consent in Settings before any data is sent.
+is **off by default** — no data is sent until you enter that
+service's API key in Settings, and clearing the key turns the
+layer off again.
+
+API endpoints contacted (only when the matching key is configured):
+api.openai.com, api.anthropic.com, generativelanguage.googleapis.com,
+api.voyageai.com, and your own Pinecone index host (*.pinecone.io).
 
 **Vector Memory (optional)**
 Sends signal pattern text (e.g. "disposable_email address_mismatch")
@@ -79,7 +85,18 @@ Anthropic, or Google Gemini). Leave those key fields blank and nothing is
 shared; clearing a key turns that layer off again. The Ollama reasoning
 option runs locally and shares nothing.
 
+== Screenshots ==
+
+1. Fraud dashboard — every flagged order with its AI risk score, decision, country route, and one-click Confirm Fraud / Not Fraud feedback buttons.
+2. Signal Weight Personalization — the 17 signal weights adapt automatically when you override false positives, so the system learns your store's patterns.
+3. Settings — choose your AI provider (OpenAI, Anthropic, Google Gemini, or local Ollama) and configure each layer with a single API key.
+
 == Changelog ==
 
 = 1.0.0 =
 * Initial release — local-first scoring with optional AI/vector tiers
+
+== Upgrade Notice ==
+
+= 1.0.0 =
+Initial release.

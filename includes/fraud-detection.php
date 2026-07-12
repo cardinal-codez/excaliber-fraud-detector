@@ -106,7 +106,7 @@ function aifd_catch_new_order( $order_id ) {
         'risk_score' => $risk_result['risk_score'],
         'risk_level' => $risk_result['risk_level'],
         'decision'   => $risk_result['decision'],
-        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: 'No risk signals detected.',
+        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: __( 'No risk signals detected.', 'ai-fraud-detector' ),
         'source'     => 'local_rules',
     );
 
@@ -538,23 +538,23 @@ function aifd_calculate_risk_score( $signals ) {
     $fired_signals = array();
 
     $signal_map = array(
-        'card_testing_pattern'   => 'Card testing pattern detected',
-        'disposable_email'       => 'Disposable or suspicious email',
-        'high_velocity'          => 'High order velocity from same customer',
-        'address_mismatch'       => 'Billing and shipping country mismatch',
-        'freight_forwarder'      => 'Shipping to freight forwarder address',
-        'chargeback_history'     => 'Customer has previous chargeback history',
-        'first_order_high_value' => 'High value first order from new customer',
-        'ip_proxy_vpn'           => 'Order placed via VPN or proxy',
-        'risky_country_combo'    => 'High-risk billing/shipping country combination',
-        'mismatched_names'       => 'Billing and shipping names differ',
-        'no_phone_number'        => 'No phone number provided',
-        'payment_method_risk'    => 'Risky payment method used',
-        'multiple_addresses'     => 'Multiple shipping addresses for same email',
-        'order_total_anomaly'    => 'Order value far above store average',
-        'odd_hours'              => 'Order placed between midnight and 5am',
-        'guest_checkout'         => 'Guest checkout — no account created',
-        'new_account'            => 'Account created less than 24 hours ago',
+        'card_testing_pattern'   => __( 'Card testing pattern detected', 'ai-fraud-detector' ),
+        'disposable_email'       => __( 'Disposable or suspicious email', 'ai-fraud-detector' ),
+        'high_velocity'          => __( 'High order velocity from same customer', 'ai-fraud-detector' ),
+        'address_mismatch'       => __( 'Billing and shipping country mismatch', 'ai-fraud-detector' ),
+        'freight_forwarder'      => __( 'Shipping to freight forwarder address', 'ai-fraud-detector' ),
+        'chargeback_history'     => __( 'Customer has previous chargeback history', 'ai-fraud-detector' ),
+        'first_order_high_value' => __( 'High value first order from new customer', 'ai-fraud-detector' ),
+        'ip_proxy_vpn'           => __( 'Order placed via VPN or proxy', 'ai-fraud-detector' ),
+        'risky_country_combo'    => __( 'High-risk billing/shipping country combination', 'ai-fraud-detector' ),
+        'mismatched_names'       => __( 'Billing and shipping names differ', 'ai-fraud-detector' ),
+        'no_phone_number'        => __( 'No phone number provided', 'ai-fraud-detector' ),
+        'payment_method_risk'    => __( 'Risky payment method used', 'ai-fraud-detector' ),
+        'multiple_addresses'     => __( 'Multiple shipping addresses for same email', 'ai-fraud-detector' ),
+        'order_total_anomaly'    => __( 'Order value far above store average', 'ai-fraud-detector' ),
+        'odd_hours'              => __( 'Order placed between midnight and 5am', 'ai-fraud-detector' ),
+        'guest_checkout'         => __( 'Guest checkout — no account created', 'ai-fraud-detector' ),
+        'new_account'            => __( 'Account created less than 24 hours ago', 'ai-fraud-detector' ),
     );
 
     foreach ( $signal_map as $signal => $description ) {
@@ -824,19 +824,23 @@ function aifd_update_order_status( $order_id, $ai_result, $risk_result ) {
     // Update WooCommerce order status
     if ( $decision === 'BLOCK' ) {
         $order->update_status( 'on-hold',
-            'AI Fraud Detector: HIGH RISK blocked. Score: ' . $score . '/100.' );
+            /* translators: %d: fraud risk score out of 100 */
+            sprintf( __( 'AI Fraud Detector: HIGH RISK blocked. Score: %d/100.', 'ai-fraud-detector' ), $score ) );
         $order->add_order_note(
-            '🚨 FRAUD ALERT: Blocked by AI Fraud Detector. Score: ' . $score . '/100. Reason: ' . $reason,
+            /* translators: 1: fraud risk score out of 100, 2: reason for the decision */
+            '🚨 ' . sprintf( __( 'FRAUD ALERT: Blocked by AI Fraud Detector. Score: %1$d/100. Reason: %2$s', 'ai-fraud-detector' ), $score, $reason ),
             false
         );
     } elseif ( $decision === 'REVIEW' ) {
         $order->add_order_note(
-            '⚠️ FRAUD WARNING: Flagged for review. Score: ' . $score . '/100. Reason: ' . $reason,
+            /* translators: 1: fraud risk score out of 100, 2: reason for the decision */
+            '⚠️ ' . sprintf( __( 'FRAUD WARNING: Flagged for review. Score: %1$d/100. Reason: %2$s', 'ai-fraud-detector' ), $score, $reason ),
             false
         );
     } else {
         $order->add_order_note(
-            '✅ FRAUD CHECK PASSED. Score: ' . $score . '/100.',
+            /* translators: %d: fraud risk score out of 100 */
+            '✅ ' . sprintf( __( 'FRAUD CHECK PASSED. Score: %d/100.', 'ai-fraud-detector' ), $score ),
             false
         );
     }
@@ -861,22 +865,24 @@ function aifd_send_alert_email( $order_id, $ai_result ) {
     $provider    = $ai_result['source'] ?? 'AI';
 
     $subject = $decision === 'BLOCK'
-        ? '🚨 FRAUD ALERT: Order #' . $order_id . ' Blocked — Score ' . $score . '/100'
-        : '⚠️ FRAUD WARNING: Order #' . $order_id . ' Needs Review — Score ' . $score . '/100';
+        /* translators: 1: order ID, 2: fraud risk score out of 100 */
+        ? '🚨 ' . sprintf( __( 'FRAUD ALERT: Order #%1$d Blocked — Score %2$d/100', 'ai-fraud-detector' ), $order_id, $score )
+        /* translators: 1: order ID, 2: fraud risk score out of 100 */
+        : '⚠️ ' . sprintf( __( 'FRAUD WARNING: Order #%1$d Needs Review — Score %2$d/100', 'ai-fraud-detector' ), $order_id, $score );
 
-    $message  = "AI Fraud Detector has flagged an order.\n\n";
-    $message .= "Order ID:    #" . $order_id . "\n";
-    $message .= "Decision:    " . $decision . "\n";
-    $message .= "Risk Score:  " . $score . "/100\n";
-    $message .= "AI Provider: " . strtoupper( $provider ) . "\n";
-    $message .= "Reason:      " . $reason . "\n\n";
-    $message .= "Customer:    " . $order->get_billing_first_name() . " " . $order->get_billing_last_name() . "\n";
-    $message .= "Email:       " . $order->get_billing_email() . "\n";
-    $message .= "Total:       $" . $order->get_total() . "\n";
-    $message .= "Billing:     " . $order->get_billing_country() . "\n";
-    $message .= "Shipping:    " . $order->get_shipping_country() . "\n\n";
-    $message .= "View Order:  " . admin_url( 'post.php?post=' . $order_id . '&action=edit' ) . "\n\n";
-    $message .= "---\nAI Fraud Detector Plugin\n";
+    $message  = __( 'AI Fraud Detector has flagged an order.', 'ai-fraud-detector' ) . "\n\n";
+    $message .= __( 'Order ID:', 'ai-fraud-detector' ) . "    #" . $order_id . "\n";
+    $message .= __( 'Decision:', 'ai-fraud-detector' ) . "    " . $decision . "\n";
+    $message .= __( 'Risk Score:', 'ai-fraud-detector' ) . "  " . $score . "/100\n";
+    $message .= __( 'AI Provider:', 'ai-fraud-detector' ) . " " . strtoupper( $provider ) . "\n";
+    $message .= __( 'Reason:', 'ai-fraud-detector' ) . "      " . $reason . "\n\n";
+    $message .= __( 'Customer:', 'ai-fraud-detector' ) . "    " . $order->get_billing_first_name() . " " . $order->get_billing_last_name() . "\n";
+    $message .= __( 'Email:', 'ai-fraud-detector' ) . "       " . $order->get_billing_email() . "\n";
+    $message .= __( 'Total:', 'ai-fraud-detector' ) . "       " . $order->get_currency() . " " . $order->get_total() . "\n";
+    $message .= __( 'Billing:', 'ai-fraud-detector' ) . "     " . $order->get_billing_country() . "\n";
+    $message .= __( 'Shipping:', 'ai-fraud-detector' ) . "    " . $order->get_shipping_country() . "\n\n";
+    $message .= __( 'View Order:', 'ai-fraud-detector' ) . "  " . admin_url( 'post.php?post=' . $order_id . '&action=edit' ) . "\n\n";
+    $message .= "---\n" . __( 'AI Fraud Detector Plugin', 'ai-fraud-detector' ) . "\n";
 
     wp_mail( $admin_email, $subject, $message );
 
@@ -1095,7 +1101,8 @@ function aifd_enforce_block_status( $order_id, $old_status, $new_status ) {
 
         $order->update_status(
             'on-hold',
-            '🚨 AI Fraud Detector: Order blocked (score: ' . $order->get_meta('_aifd_risk_score') . '/100). Payment gateway override prevented.'
+            /* translators: %d: fraud risk score out of 100 */
+            '🚨 ' . sprintf( __( 'AI Fraud Detector: Order blocked (score: %d/100). Payment gateway override prevented.', 'ai-fraud-detector' ), (int) $order->get_meta( '_aifd_risk_score' ) )
         );
 
         $order->save();
@@ -1116,7 +1123,7 @@ function aifd_enforce_block_on_payment( $order_id ) {
 
         $order->update_status(
             'on-hold',
-            '🚨 AI Fraud Detector: Payment received but order blocked due to HIGH fraud risk.'
+            '🚨 ' . __( 'AI Fraud Detector: Payment received but order blocked due to HIGH fraud risk.', 'ai-fraud-detector' )
         );
 
         $order->save();
@@ -1129,13 +1136,15 @@ function aifd_enforce_block_on_payment( $order_id ) {
 // LOGGING
 // ══════════════════════════════════════════════════
 function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result ) {
-    write_log( "Logging order #$order_id with AI result: " . json_encode( $ai_result ) );
 
-    $log_file = AIFD_PATH . 'fraud-log.txt';
+    if ( ! function_exists( 'wc_get_logger' ) ) {
+        return;
+    }
 
-    $log_entry  = "========================================\n";
-    $log_entry .= gmdate( 'Y-m-d H:i:s' ) . ' - Order #' . $order_id . "\n";
-    $log_entry .= "========================================\n";
+    // Never log raw PII — the signal booleans carry the risk info.
+    unset( $signals['customer_email'], $signals['customer_ip'], $signals['billing_phone'] );
+
+    $log_entry  = "Order #" . $order_id . "\n";
     $log_entry .= "🤖 AI SCORING (" . strtoupper( $ai_result['source'] ?? 'unknown' ) . "):\n";
     $log_entry .= "   Score:    " . $ai_result['risk_score'] . "/100\n";
     $log_entry .= "   Level:    " . $ai_result['risk_level'] . "\n";
@@ -1172,11 +1181,9 @@ function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result )
     }
 
     $log_entry .= "----------------------------------------\n";
-
-    $log_entry .= "----------------------------------------\n";
     $log_entry .= "📊 SIGNALS:\n";
-    $log_entry .= json_encode( $signals, JSON_PRETTY_PRINT ) . "\n\n";
+    $log_entry .= wp_json_encode( $signals, JSON_PRETTY_PRINT );
 
-    file_put_contents( $log_file, $log_entry, FILE_APPEND );
+    wc_get_logger()->info( $log_entry, array( 'source' => 'ai-fraud-detector' ) );
 
 }

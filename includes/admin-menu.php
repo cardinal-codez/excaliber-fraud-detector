@@ -8,8 +8,8 @@ add_action('admin_menu', 'aifd_register_menu');
 
 function aifd_register_menu() {
     add_menu_page(
-        'AI Fraud Detector',
-        'Fraud Detector',
+        __( 'AI Fraud Detector', 'ai-fraud-detector' ),
+        __( 'Fraud Detector', 'ai-fraud-detector' ),
         'manage_options',
         'ai-fraud-detector',
         'aifd_render_dashboard',

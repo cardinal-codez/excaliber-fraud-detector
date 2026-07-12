@@ -1,11 +1,16 @@
 <?php
 /**
- * Plugin Name: AI Fraud Detector
+ * Plugin Name: AI Fraud Detector Engine for Ecommerce
  * Plugin URI: https://github.com/dilrubaummer/ai-fraude-detector
- * Description: AI powered fraud detection for WooCommerce
+ * Description: Real-time fraud detection for WooCommerce. Local signal scoring out of the box, with optional AI and vector search layers.
  * Version: 1.0.0
  * Author: Dilruba
- * License: GPL2
+ * Requires at least: 6.0
+ * Requires PHP: 8.0
+ * Requires Plugins: woocommerce
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain: ai-fraud-detector
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
