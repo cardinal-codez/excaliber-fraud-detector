@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: AI Fraud Detector Engine for Ecommerce
- * Plugin URI: https://github.com/dilrubaummer/ai-fraude-detector
+ * Plugin URI: https://github.com/dilrubaummer/ai-fraud-detector
  * Description: Real-time fraud detection for WooCommerce. Local signal scoring out of the box, with optional AI and vector search layers.
  * Version: 1.0.0
  * Author: Dilruba

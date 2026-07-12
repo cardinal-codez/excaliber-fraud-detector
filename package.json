@@ -1,5 +1,5 @@
 {
-  "name": "ai-fraude-detector",
+  "name": "ai-fraud-detector",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dilrubaummer/ai-fraude-detector.git"
+    "url": "git+https://github.com/dilrubaummer/ai-fraud-detector.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/dilrubaummer/ai-fraude-detector/issues"
+    "url": "https://github.com/dilrubaummer/ai-fraud-detector/issues"
   },
-  "homepage": "https://github.com/dilrubaummer/ai-fraude-detector#readme",
+  "homepage": "https://github.com/dilrubaummer/ai-fraud-detector#readme",
   "devDependencies": {
     "@wordpress/scripts": "^32.2.0"
   }
