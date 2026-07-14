@@ -1,7 +1,7 @@
 # Dev-only files — stripped from the release zip by `git archive`.
 # LICENSE is deliberately NOT listed: it must ship with the plugin.
 .* export-ignore
-ROADMAP.MD export-ignore
+ROADMAP.md export-ignore
 ARCHITECTURE.md export-ignore
 README.md export-ignore
 SECURITY.md export-ignore

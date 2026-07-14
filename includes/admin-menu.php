@@ -11,7 +11,7 @@ function aifd_register_menu() {
     // hardcoding it — a rename would otherwise silently stop the enqueues.
     $GLOBALS['aifd_dashboard_hook'] = add_menu_page(
         __( 'Vigilo AI Fraud Detector', 'vigilo-ai-fraud-detector' ),
-        __( 'Vigilo', 'vigilo-ai-fraud-detector' ),
+        __( 'Vigilo AI Fraud Detector', 'vigilo-ai-fraud-detector' ),
         'manage_options',
         'vigilo-ai-fraud-detector',
         'aifd_render_dashboard',

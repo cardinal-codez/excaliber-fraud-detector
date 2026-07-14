@@ -13,6 +13,19 @@ The plugin supports multiple AI providers — OpenAI, Anthropic, Google Gemini, 
 
 ---
 
+## Architecture Principles
+
+The architecture is built around the following principles:
+
+- Local-first operation with graceful degradation.
+- Modular AI provider abstraction.
+- Provider-independent vector storage.
+- Merchant-specific learning.
+- WordPress-native integration.
+- Checkout reliability over external service availability.
+
+---
+
 ## Core Architecture
 
 ```
@@ -162,7 +175,7 @@ A clear warning is shown in the settings page when Ollama is selected.
 
 ## Embedding Abstraction Layer
 
-### The Problem This Solves
+### Embedding Strategy
 
 All 65 seed patterns must be embedded with the same model they will be searched with. Mixing embedding models breaks vector similarity search completely.
 
@@ -614,52 +627,6 @@ The release zip is produced by `git archive`, so anything marked
 `export-ignore` in `.gitattributes` (this file, `README.md`,
 `ROADMAP.MD`, `package.json`, build config) is stripped from what
 merchants actually install.
-
----
-
-## Development Roadmap
-
-### Phase 1 — Foundation (Complete ✅)
-
-- [x] WooCommerce order capture
-- [x] 17 fraud signal extraction
-- [x] Weighted rule scoring
-- [x] Auto flag + email alerts
-- [x] React dashboard
-- [x] WordPress REST API
-- [x] Multi-provider architecture (OpenAI / Anthropic / Gemini / Ollama)
-- [x] Settings page
-
-### Phase 2 — Production AI (Complete ✅)
-
-- [x] 65 seed patterns created
-- [x] chargeback_history signal #17
-- [x] Pinecone account + index setup
-- [x] Embedding abstraction layer
-- [x] Per-provider namespace seeding
-- [x] Pinecone wired into the scoring pipeline
-- [x] Function calling agent replaces basic prompting
-- [x] Feedback loop UI (Confirm Fraud / Override)
-- [x] Feedback loop persists confirmed patterns to Pinecone
-- [x] Per-merchant weight personalization
-- [x] Local-first capability tiers + circuit breakers
-
-### Phase 3 — Hardening (Next)
-
-- [ ] Unit tests for signal extraction and risk scoring
-- [ ] Split `fraud-detection.php` by responsibility
-- [ ] WordPress.org submission
-
-### Phase 4 — Platform Expansion (Planned)
-
-- [ ] Easy Digital Downloads integration
-- [ ] SureCart integration
-- [ ] Shopify webhook + Python API on Azure
-
-### Phase 5 — Growth (Future)
-
-- [ ] Community pattern sharing (opt-in, anonymized)
-- [ ] Analytics and reporting
 
 ---
 
