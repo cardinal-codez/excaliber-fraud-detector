@@ -21,3 +21,6 @@ fraud-log.txt
 
 # npm debug logs
 npm-debug.log*
+# Composer dev dependencies (PHPUnit)
+vendor/
+.phpunit.result.cache

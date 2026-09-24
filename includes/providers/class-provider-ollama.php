@@ -15,7 +15,7 @@ class AIFD_Provider_Ollama extends AIFD_Provider_Base {
             'headers' => array(
                 'Content-Type' => 'application/json',
             ),
-            'body' => json_encode( array(
+            'body' => wp_json_encode( array(
                 'model'    => $model,
                 'stream'   => false,
                 'messages' => array(

@@ -1,4 +1,4 @@
-# Vigilo — AI Fraud Detection for WooCommerce
+# DISHAM — AI Fraud Detector
 
 > Production-grade AI-powered fraud detection plugin 
 > for WooCommerce using OpenAI function calling, 
@@ -8,7 +8,7 @@
 
 ## What It Does
 
-Vigilo analyzes every WooCommerce order 
+DISHAM analyzes every WooCommerce order 
 in real-time using an autonomous AI agent. 
 The agent evaluates 17 weighted fraud signals, 
 searches a vector database of known fraud patterns, 
@@ -212,6 +212,24 @@ That's the whole list. API keys are only needed for the optional layers:
 
 Anthropic users also need a Voyage AI key for embeddings, since
 Anthropic does not offer an embedding model of its own.
+
+---
+
+## Running Tests
+
+The suite uses the WordPress core test library with WooCommerce loaded. It
+needs an **empty** MySQL database — every table in it is dropped on each run.
+
+```bash
+composer install
+mysql -uroot -proot -e "CREATE DATABASE disham_tests"
+composer test
+```
+
+Defaults in `tests/wp-tests-config.php` target a MAMP setup (WordPress three
+folders up, MAMP's MySQL socket). Override with `WP_CORE_DIR`,
+`WP_TESTS_DB_NAME`, `WP_TESTS_DB_USER`, `WP_TESTS_DB_PASS`, `WP_TESTS_DB_HOST`
+or `WC_DIR`. All outgoing HTTP is faked, so no API keys are used.
 
 ---
 

@@ -404,7 +404,7 @@ const FraudDashboard = () => {
                     }}>🛡️</div>
                     <div>
                         <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '600', color: '#1e293b' }}>
-                            Vigilo
+                            DISHAM
                         </h1>
                         <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
                             WooCommerce Protection Dashboard

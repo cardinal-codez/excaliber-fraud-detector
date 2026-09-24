@@ -27,7 +27,7 @@ class AIFD_Provider_Gemini extends AIFD_Provider_Base {
             'headers' => array(
                 'Content-Type' => 'application/json',
             ),
-            'body' => json_encode( array(
+            'body' => wp_json_encode( array(
                 'contents' => array(
                     array(
                         'parts' => array(

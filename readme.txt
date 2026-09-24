@@ -1,8 +1,8 @@
-=== Vigilo AI Fraud Detector ===
+=== DISHAM – AI Fraud Detector ===
 Contributors: dilrubaummer
 Tags: fraud, woocommerce, security, ai, vector search
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
 Stable tag: 1.0.0
 License: GPLv2 or later
@@ -13,7 +13,7 @@ signal scoring — optional AI and vector search layers available.
 
 == Description ==
 
-Vigilo scores every WooCommerce order against 17 weighted
+DISHAM scores every WooCommerce order against 17 weighted
 fraud signals (disposable emails, address mismatches, card testing
 patterns, and more) the moment it's placed. The local scoring engine
 is pure PHP, requires no setup, and sends no data anywhere — it works
@@ -45,7 +45,7 @@ Sends signal pattern text (e.g. "disposable_email address_mismatch")
 to your chosen embedding provider, then to Pinecone for storage and
 search. No customer name, email, or address text is included.
 [OpenAI Privacy Policy](https://openai.com/policies/privacy-policy)
-[Pinecone Privacy Policy](https://www.pinecone.io/legal/privacy-policy/)
+[Pinecone Privacy Policy](https://www.pinecone.io/privacy/)
 [Voyage AI Privacy Policy](https://www.voyageai.com/privacy)
 
 **AI Reasoning (optional)**

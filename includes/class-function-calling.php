@@ -194,6 +194,7 @@ class AIFD_FunctionCalling {
         $cutoff   = time() - ( $window * 60 );
 
         $recent_orders = wc_get_orders( array(
+            'type'   => 'shop_order', // exclude refunds, which lack order fields
             'limit'  => 100,
             'return' => 'objects',
         ));
@@ -327,7 +328,7 @@ class AIFD_FunctionCalling {
                     'Authorization' => 'Bearer ' . $api_key,
                     'Content-Type'  => 'application/json',
                 ),
-                'body' => json_encode( array(
+                'body' => wp_json_encode( array(
                     'model'    => $model,
                     'messages' => $messages,
                     'tools'    => $tools,
@@ -382,7 +383,7 @@ class AIFD_FunctionCalling {
                 $tool_results[] = array(
                     'role'         => 'tool',
                     'tool_call_id' => $tool_call['id'],
-                    'content'      => json_encode( $result ),
+                    'content'      => wp_json_encode( $result ),
                 );
 
             }
@@ -441,7 +442,7 @@ class AIFD_FunctionCalling {
                     'anthropic-version' => '2023-06-01',
                     'Content-Type'      => 'application/json',
                 ),
-                'body' => json_encode( array(
+                'body' => wp_json_encode( array(
                     'model'      => $model,
                     'max_tokens' => 1024,
                     'system'     => 'You are a fraud detection agent. Use the available tools to analyze this order. Call check_signal_weights and search_fraud_patterns first, then check_velocity if needed, then calculate_final_risk last.',
@@ -504,7 +505,7 @@ class AIFD_FunctionCalling {
                 $tool_results[] = array(
                     'type'        => 'tool_result',
                     'tool_use_id' => $block['id'],
-                    'content'     => json_encode( $result ),
+                    'content'     => wp_json_encode( $result ),
                 );
 
             }

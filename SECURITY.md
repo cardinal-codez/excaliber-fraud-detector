@@ -11,7 +11,7 @@
 
 Please **do not open a public GitHub issue** for security problems.
 
-Report privately via [GitHub's private vulnerability reporting](https://github.com/dilrubaummer/vigilo-ai-fraud-detector/security/advisories/new),
+Report privately via [GitHub's private vulnerability reporting](https://github.com/dilrubaummer/disham-fraud-detector/security/advisories/new),
 which opens a draft advisory visible only to the maintainers.
 
 Please include:

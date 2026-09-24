@@ -98,7 +98,7 @@ class AIFD_Embeddings {
                 'Authorization' => 'Bearer ' . $api_key,
                 'Content-Type'  => 'application/json',
             ),
-            'body' => json_encode( array(
+            'body' => wp_json_encode( array(
                 'input' => $text,
                 'model' => 'text-embedding-3-small',
             )),
@@ -132,7 +132,7 @@ class AIFD_Embeddings {
                 'Authorization' => 'Bearer ' . $api_key,
                 'Content-Type'  => 'application/json',
             ),
-            'body' => json_encode( array(
+            'body' => wp_json_encode( array(
                 'input' => $text,
                 'model' => 'voyage-3',
             )),
@@ -165,7 +165,7 @@ class AIFD_Embeddings {
             'headers' => array(
                 'Content-Type' => 'application/json',
             ),
-            'body' => json_encode( array(
+            'body' => wp_json_encode( array(
                 'model'   => 'models/text-embedding-004',
                 'content' => array(
                     'parts' => array(
@@ -197,7 +197,7 @@ class AIFD_Embeddings {
             'headers' => array(
                 'Content-Type' => 'application/json',
             ),
-            'body' => json_encode( array(
+            'body' => wp_json_encode( array(
                 'model'  => $model,
                 'prompt' => $text,
             )),

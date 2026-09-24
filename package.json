@@ -1,5 +1,5 @@
 {
-  "name": "vigilo-ai-fraud-detector",
+  "name": "disham-fraud-detector",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dilrubaummer/vigilo-ai-fraud-detector.git"
+    "url": "git+https://github.com/dilrubaummer/disham-fraud-detector.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/dilrubaummer/vigilo-ai-fraud-detector/issues"
+    "url": "https://github.com/dilrubaummer/disham-fraud-detector/issues"
   },
-  "homepage": "https://github.com/dilrubaummer/vigilo-ai-fraud-detector#readme",
+  "homepage": "https://github.com/dilrubaummer/disham-fraud-detector#readme",
   "devDependencies": {
     "@wordpress/scripts": "^32.2.0"
   }

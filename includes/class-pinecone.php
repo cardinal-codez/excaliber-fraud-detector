@@ -50,14 +50,17 @@ class AIFD_Pinecone {
                 'Api-Key'      => $this->api_key,
                 'Content-Type' => 'application/json',
             ),
-            'body' => json_encode( $body ),
+            'body' => wp_json_encode( $body ),
         ));
 
         if ( is_wp_error( $response ) ) {
             return false;
         }
 
-        return true;
+        // A wrong key or host answers 4xx — don't report that as saved.
+        $code = wp_remote_retrieve_response_code( $response );
+
+        return $code >= 200 && $code < 300;
 
     }
 
@@ -85,7 +88,7 @@ class AIFD_Pinecone {
                 'Api-Key'      => $this->api_key,
                 'Content-Type' => 'application/json',
             ),
-            'body' => json_encode( $body ),
+            'body' => wp_json_encode( $body ),
         ));
 
         if ( is_wp_error( $response ) ) {
@@ -187,7 +190,7 @@ class AIFD_Pinecone {
                 'Api-Key'      => $this->api_key,
                 'Content-Type' => 'application/json',
             ),
-            'body' => json_encode($body),
+            'body' => wp_json_encode($body),
         ));
 
         return true;
@@ -203,7 +206,7 @@ class AIFD_Pinecone {
         $embeddings = new AIFD_Embeddings();
 
         if ( ! $pinecone->is_configured() ) {
-            return array( 'success' => false, 'message' => __( 'Pinecone not configured', 'vigilo-ai-fraud-detector' ) );
+            return array( 'success' => false, 'message' => __( 'Pinecone not configured', 'disham-fraud-detector' ) );
         }
 
         $merchant_id    = get_current_blog_id();
@@ -246,7 +249,7 @@ class AIFD_Pinecone {
         return array(
             'success'  => true,
             /* translators: 1: number of migrated patterns, 2: new provider name */
-            'message'  => sprintf( __( 'Migration complete. Seeds loaded + %1$d confirmed patterns migrated to %2$s namespace.', 'vigilo-ai-fraud-detector' ), $migrated, $to_provider ),
+            'message'  => sprintf( __( 'Migration complete. Seeds loaded + %1$d confirmed patterns migrated to %2$s namespace.', 'disham-fraud-detector' ), $migrated, $to_provider ),
             'migrated' => $migrated,
         );
 

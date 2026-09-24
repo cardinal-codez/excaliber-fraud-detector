@@ -20,7 +20,7 @@ class AIFD_Provider_OpenAI extends AIFD_Provider_Base {
                 'Authorization' => 'Bearer ' . $api_key,
                 'Content-Type'  => 'application/json',
             ),
-            'body' => json_encode( array(
+            'body' => wp_json_encode( array(
                 'model'      => $model,
                 'max_tokens' => 200,
                 'messages'   => array(

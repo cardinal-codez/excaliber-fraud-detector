@@ -21,7 +21,7 @@ class AIFD_Provider_Anthropic extends AIFD_Provider_Base {
                 'anthropic-version' => '2023-06-01',
                 'Content-Type'      => 'application/json',
             ),
-            'body' => json_encode( array(
+            'body' => wp_json_encode( array(
                 'model'      => $model,
                 'max_tokens' => 200,
                 'system'     => 'You are a fraud detection expert. Always respond with valid JSON only.',

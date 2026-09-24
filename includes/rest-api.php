@@ -63,12 +63,12 @@ function aifd_ajax_load_seeds() {
 
     // Verify nonce
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Security check failed', 'vigilo-ai-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'disham-fraud-detector' ) ) );
     }
 
     // Check permissions
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Permission denied', 'vigilo-ai-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Permission denied', 'disham-fraud-detector' ) ) );
     }
 
     $loader = new AIFD_Seed_Loader();
@@ -104,10 +104,11 @@ function aifd_get_stats() {
 function aifd_get_flagged_orders() {
 
     if ( ! function_exists( 'wc_get_orders' ) ) {
-        return new WP_Error( 'woocommerce_inactive', __( 'WooCommerce must be active.', 'vigilo-ai-fraud-detector' ), array( 'status' => 501 ) );
+        return new WP_Error( 'woocommerce_inactive', __( 'WooCommerce must be active.', 'disham-fraud-detector' ), array( 'status' => 501 ) );
     }
 
     $orders = wc_get_orders( array(
+        'type'    => 'shop_order', // exclude refunds, which lack order fields
         'limit'   => 20,
         'status'  => array( 'on-hold', 'processing' ),
         'return'  => 'objects',
@@ -156,19 +157,21 @@ function aifd_order_action( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', __( 'Order not found', 'vigilo-ai-fraud-detector' ), array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'disham-fraud-detector' ), array( 'status' => 404 ) );
     }
 
+    // Decision meta is saved before the status change so aifd_enforce_block_status
+    // sees the merchant's verdict rather than the original BLOCK.
     if ( $action === 'approve' ) {
-        $order->update_status( 'processing', __( 'Manually approved by admin via Vigilo.', 'vigilo-ai-fraud-detector' ) );
         $order->update_meta_data( '_aifd_decision', 'APPROVED' );
-        $message = __( 'Order approved successfully', 'vigilo-ai-fraud-detector' );
+        $order->update_status( 'processing', __( 'Manually approved by admin via DISHAM.', 'disham-fraud-detector' ) );
+        $message = __( 'Order approved successfully', 'disham-fraud-detector' );
     } elseif ( $action === 'block' ) {
-        $order->update_status( 'cancelled', __( 'Manually blocked by admin via Vigilo.', 'vigilo-ai-fraud-detector' ) );
         $order->update_meta_data( '_aifd_decision', 'BLOCKED' );
-        $message = __( 'Order blocked successfully', 'vigilo-ai-fraud-detector' );
+        $order->update_status( 'cancelled', __( 'Manually blocked by admin via DISHAM.', 'disham-fraud-detector' ) );
+        $message = __( 'Order blocked successfully', 'disham-fraud-detector' );
     } else {
-        $message = __( 'No action taken', 'vigilo-ai-fraud-detector' );
+        $message = __( 'No action taken', 'disham-fraud-detector' );
     }
 
     $order->save();
@@ -187,7 +190,7 @@ function aifd_confirm_fraud( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', __( 'Order not found', 'vigilo-ai-fraud-detector' ), array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'disham-fraud-detector' ), array( 'status' => 404 ) );
     }
 
     // Update review status
@@ -201,11 +204,11 @@ function aifd_confirm_fraud( $request ) {
 
     // Add order note
     $pinecone_note = $saved
-        ? __( 'Pattern saved to Pinecone vector store — system will recognize this fraud type faster next time.', 'vigilo-ai-fraud-detector' )
-        : __( 'Note: Pinecone save failed — check API key and configuration.', 'vigilo-ai-fraud-detector' );
+        ? __( 'Pattern saved to Pinecone vector store — system will recognize this fraud type faster next time.', 'disham-fraud-detector' )
+        : __( 'Note: Pinecone save failed — check API key and configuration.', 'disham-fraud-detector' );
 
     $order->add_order_note(
-        '🚨 ' . __( 'CONFIRMED FRAUD: Manually confirmed by merchant.', 'vigilo-ai-fraud-detector' ) . ' ' . $pinecone_note,
+        '🚨 ' . __( 'CONFIRMED FRAUD: Manually confirmed by merchant.', 'disham-fraud-detector' ) . ' ' . $pinecone_note,
         false
     );
     $order->save();
@@ -235,8 +238,8 @@ function aifd_confirm_fraud( $request ) {
     return rest_ensure_response( array(
         'success'         => true,
         'message'         => $saved
-            ? __( 'Confirmed as fraud. Pattern saved to Pinecone — AI will recognize this faster next time.', 'vigilo-ai-fraud-detector' )
-            : __( 'Confirmed as fraud. Note: Pinecone save failed — check your API configuration.', 'vigilo-ai-fraud-detector' ),
+            ? __( 'Confirmed as fraud. Pattern saved to Pinecone — AI will recognize this faster next time.', 'disham-fraud-detector' )
+            : __( 'Confirmed as fraud. Note: Pinecone save failed — check your API configuration.', 'disham-fraud-detector' ),
         'status'          => 'CONFIRMED_FRAUD',
         'pinecone_saved'  => $saved,
     ));
@@ -250,7 +253,7 @@ function aifd_override_fraud( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', __( 'Order not found', 'vigilo-ai-fraud-detector' ), array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'disham-fraud-detector' ), array( 'status' => 404 ) );
     }
 
     // Get fired signals BEFORE we change anything
@@ -260,15 +263,17 @@ function aifd_override_fraud( $request ) {
     $order->update_meta_data( '_aifd_review_status', 'FALSE_POSITIVE' );
     $order->update_meta_data( '_aifd_reviewed_at', current_time( 'mysql' ) );
     $order->update_meta_data( '_aifd_reviewed_by', get_current_user_id() );
+    // Clear the BLOCK first, or aifd_enforce_block_status puts the order straight back on hold.
+    $order->update_meta_data( '_aifd_decision', 'APPROVED' );
 
     // Release order back to processing
     $order->update_status(
         'processing',
-        '✅ ' . __( 'FALSE POSITIVE: Override by merchant — order approved for processing.', 'vigilo-ai-fraud-detector' )
+        '✅ ' . __( 'FALSE POSITIVE: Override by merchant — order approved for processing.', 'disham-fraud-detector' )
     );
 
     $order->add_order_note(
-        '✅ ' . __( 'FALSE POSITIVE: Merchant confirmed this is a legitimate order. Signal weights adjusted.', 'vigilo-ai-fraud-detector' ),
+        '✅ ' . __( 'FALSE POSITIVE: Merchant confirmed this is a legitimate order. Signal weights adjusted.', 'disham-fraud-detector' ),
         false
     );
 
@@ -287,7 +292,7 @@ function aifd_override_fraud( $request ) {
 
     return rest_ensure_response( array(
         'success' => true,
-        'message' => __( 'Order approved. Signal weights adjusted to reduce false positives.', 'vigilo-ai-fraud-detector' ),
+        'message' => __( 'Order approved. Signal weights adjusted to reduce false positives.', 'disham-fraud-detector' ),
         'status'  => 'FALSE_POSITIVE',
     ));
 
@@ -345,9 +350,9 @@ function aifd_get_weights() {
         'false_positives' => $false_positives,
         'personalized'    => ! empty( $merchant_weights ),
         'calibration'     => $false_positives >= 10
-            ? __( 'Well calibrated', 'vigilo-ai-fraud-detector' )
+            ? __( 'Well calibrated', 'disham-fraud-detector' )
             /* translators: %d: number of merchant overrides so far */
-            : sprintf( __( 'Still learning (%d/10 overrides)', 'vigilo-ai-fraud-detector' ), $false_positives ),
+            : sprintf( __( 'Still learning (%d/10 overrides)', 'disham-fraud-detector' ), $false_positives ),
     ));
 
 }
@@ -359,7 +364,7 @@ function aifd_reset_weights() {
 
     return rest_ensure_response( array(
         'success' => true,
-        'message' => __( 'Weights reset to global defaults', 'vigilo-ai-fraud-detector' ),
+        'message' => __( 'Weights reset to global defaults', 'disham-fraud-detector' ),
     ));
 
 }
@@ -378,21 +383,21 @@ add_action( 'wp_ajax_aifd_migrate_patterns', 'aifd_ajax_migrate_patterns' );
 function aifd_ajax_migrate_patterns() {
 
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Security check failed', 'vigilo-ai-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'disham-fraud-detector' ) ) );
     }
 
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Permission denied', 'vigilo-ai-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Permission denied', 'disham-fraud-detector' ) ) );
     }
 
     $from = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
     $to   = sanitize_text_field( wp_unslash( $_POST['to']   ?? '' ) );
 
     if ( empty( $from ) || empty( $to ) ) {
-        wp_send_json_error( array( 'message' => __( 'Missing provider information', 'vigilo-ai-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Missing provider information', 'disham-fraud-detector' ) ) );
     }
 
-    $result = aifd_migrate_namespace( $from, $to );
+    $result = ( new AIFD_Pinecone() )->aifd_migrate_namespace( $from, $to );
 
     if ( $result['success'] ) {
         // Mark switch as handled
@@ -410,7 +415,11 @@ add_action( 'wp_ajax_aifd_dismiss_migration', 'aifd_ajax_dismiss_migration' );
 function aifd_ajax_dismiss_migration() {
 
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Security check failed', 'vigilo-ai-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'disham-fraud-detector' ) ) );
+    }
+
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => __( 'Permission denied', 'disham-fraud-detector' ) ) );
     }
 
     update_option( 'aifd_provider_switched', array( 'handled' => true ) );
@@ -419,6 +428,6 @@ function aifd_ajax_dismiss_migration() {
     $loader = new AIFD_Seed_Loader();
     $loader->load_seeds();
 
-    wp_send_json_success( array( 'message' => __( 'Starting fresh with new provider', 'vigilo-ai-fraud-detector' ) ) );
+    wp_send_json_success( array( 'message' => __( 'Starting fresh with new provider', 'disham-fraud-detector' ) ) );
 
 }
