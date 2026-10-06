@@ -10,10 +10,10 @@ function aifd_register_menu() {
     // Hook suffix is derived from the menu title, so capture it rather than
     // hardcoding it — a rename would otherwise silently stop the enqueues.
     $GLOBALS['aifd_dashboard_hook'] = add_menu_page(
-        __( 'DISHAM – AI Fraud Detector', 'disham-fraud-detector' ),
-        __( 'DISHAM', 'disham-fraud-detector' ),
+        __( 'Hifqa – AI Fraud Detector', 'hifqa-fraud-detector' ),
+        __( 'Hifqa', 'hifqa-fraud-detector' ),
         'manage_options',
-        'disham-fraud-detector',
+        'hifqa-fraud-detector',
         'aifd_render_dashboard',
         'dashicons-shield',
         56

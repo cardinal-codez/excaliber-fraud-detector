@@ -1,7 +1,7 @@
 <?php
-namespace Disham\Tests\Unit;
+namespace Hifqa\Tests\Unit;
 
-use Disham\Tests\TestCase;
+use Hifqa\Tests\TestCase;
 
 /**
  * The individual fraud-signal detectors.

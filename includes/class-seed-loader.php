@@ -30,7 +30,7 @@ class AIFD_Seed_Loader {
         if ( ! $this->pinecone->is_configured() ) {
             return array(
                 'success' => false,
-                'message' => __( 'Pinecone not configured — add API key and host URL first', 'disham-fraud-detector' ),
+                'message' => __( 'Pinecone not configured — add API key and host URL first', 'hifqa-fraud-detector' ),
             );
         }
 
@@ -42,7 +42,7 @@ class AIFD_Seed_Loader {
         if ( ! file_exists( $seed_file ) ) {
             return array(
                 'success' => false,
-                'message' => __( 'seed-patterns.json not found in data/ folder', 'disham-fraud-detector' )
+                'message' => __( 'seed-patterns.json not found in data/ folder', 'hifqa-fraud-detector' )
             );
         }
 
@@ -51,7 +51,7 @@ class AIFD_Seed_Loader {
         if ( empty( $patterns ) ) {
             return array(
                 'success' => false,
-                'message' => __( 'No patterns found in seed-patterns.json', 'disham-fraud-detector' )
+                'message' => __( 'No patterns found in seed-patterns.json', 'hifqa-fraud-detector' )
             );
         }
 
@@ -101,7 +101,7 @@ class AIFD_Seed_Loader {
         return array(
             'success' => true,
             /* translators: 1: number of patterns loaded, 2: total patterns, 3: Pinecone namespace, 4: number of failures */
-            'message' => sprintf( __( 'Loaded %1$d/%2$d patterns in namespace: %3$s. Failed: %4$d', 'disham-fraud-detector' ), $loaded, $total, $namespace, $failed ),
+            'message' => sprintf( __( 'Loaded %1$d/%2$d patterns in namespace: %3$s. Failed: %4$d', 'hifqa-fraud-detector' ), $loaded, $total, $namespace, $failed ),
             'loaded'  => $loaded,
             'failed'  => $failed,
             'total'   => $total,

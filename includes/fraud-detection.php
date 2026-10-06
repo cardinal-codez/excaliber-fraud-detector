@@ -106,7 +106,7 @@ function aifd_catch_new_order( $order_id ) {
         'risk_score' => $risk_result['risk_score'],
         'risk_level' => $risk_result['risk_level'],
         'decision'   => $risk_result['decision'],
-        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: __( 'No risk signals detected.', 'disham-fraud-detector' ),
+        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: __( 'No risk signals detected.', 'hifqa-fraud-detector' ),
         'source'     => 'local_rules',
     );
 
@@ -543,23 +543,23 @@ function aifd_calculate_risk_score( $signals ) {
     $fired_signals = array();
 
     $signal_map = array(
-        'card_testing_pattern'   => __( 'Card testing pattern detected', 'disham-fraud-detector' ),
-        'disposable_email'       => __( 'Disposable or suspicious email', 'disham-fraud-detector' ),
-        'high_velocity'          => __( 'High order velocity from same customer', 'disham-fraud-detector' ),
-        'address_mismatch'       => __( 'Billing and shipping country mismatch', 'disham-fraud-detector' ),
-        'freight_forwarder'      => __( 'Shipping to freight forwarder address', 'disham-fraud-detector' ),
-        'chargeback_history'     => __( 'Customer has previous chargeback history', 'disham-fraud-detector' ),
-        'first_order_high_value' => __( 'High value first order from new customer', 'disham-fraud-detector' ),
-        'ip_proxy_vpn'           => __( 'Order placed via VPN or proxy', 'disham-fraud-detector' ),
-        'risky_country_combo'    => __( 'High-risk billing/shipping country combination', 'disham-fraud-detector' ),
-        'mismatched_names'       => __( 'Billing and shipping names differ', 'disham-fraud-detector' ),
-        'no_phone_number'        => __( 'No phone number provided', 'disham-fraud-detector' ),
-        'payment_method_risk'    => __( 'Risky payment method used', 'disham-fraud-detector' ),
-        'multiple_addresses'     => __( 'Multiple shipping addresses for same email', 'disham-fraud-detector' ),
-        'order_total_anomaly'    => __( 'Order value far above store average', 'disham-fraud-detector' ),
-        'odd_hours'              => __( 'Order placed between midnight and 5am', 'disham-fraud-detector' ),
-        'guest_checkout'         => __( 'Guest checkout — no account created', 'disham-fraud-detector' ),
-        'new_account'            => __( 'Account created less than 24 hours ago', 'disham-fraud-detector' ),
+        'card_testing_pattern'   => __( 'Card testing pattern detected', 'hifqa-fraud-detector' ),
+        'disposable_email'       => __( 'Disposable or suspicious email', 'hifqa-fraud-detector' ),
+        'high_velocity'          => __( 'High order velocity from same customer', 'hifqa-fraud-detector' ),
+        'address_mismatch'       => __( 'Billing and shipping country mismatch', 'hifqa-fraud-detector' ),
+        'freight_forwarder'      => __( 'Shipping to freight forwarder address', 'hifqa-fraud-detector' ),
+        'chargeback_history'     => __( 'Customer has previous chargeback history', 'hifqa-fraud-detector' ),
+        'first_order_high_value' => __( 'High value first order from new customer', 'hifqa-fraud-detector' ),
+        'ip_proxy_vpn'           => __( 'Order placed via VPN or proxy', 'hifqa-fraud-detector' ),
+        'risky_country_combo'    => __( 'High-risk billing/shipping country combination', 'hifqa-fraud-detector' ),
+        'mismatched_names'       => __( 'Billing and shipping names differ', 'hifqa-fraud-detector' ),
+        'no_phone_number'        => __( 'No phone number provided', 'hifqa-fraud-detector' ),
+        'payment_method_risk'    => __( 'Risky payment method used', 'hifqa-fraud-detector' ),
+        'multiple_addresses'     => __( 'Multiple shipping addresses for same email', 'hifqa-fraud-detector' ),
+        'order_total_anomaly'    => __( 'Order value far above store average', 'hifqa-fraud-detector' ),
+        'odd_hours'              => __( 'Order placed between midnight and 5am', 'hifqa-fraud-detector' ),
+        'guest_checkout'         => __( 'Guest checkout — no account created', 'hifqa-fraud-detector' ),
+        'new_account'            => __( 'Account created less than 24 hours ago', 'hifqa-fraud-detector' ),
     );
 
     foreach ( $signal_map as $signal => $description ) {
@@ -815,22 +815,22 @@ function aifd_update_order_status( $order_id, $ai_result, $risk_result ) {
     if ( $decision === 'BLOCK' ) {
         $order->update_status( 'on-hold',
             /* translators: %d: fraud risk score out of 100 */
-            sprintf( __( 'DISHAM: HIGH RISK blocked. Score: %d/100.', 'disham-fraud-detector' ), $score ) );
+            sprintf( __( 'Hifqa: HIGH RISK blocked. Score: %d/100.', 'hifqa-fraud-detector' ), $score ) );
         $order->add_order_note(
             /* translators: 1: fraud risk score out of 100, 2: reason for the decision */
-            '🚨 ' . sprintf( __( 'FRAUD ALERT: Blocked by DISHAM. Score: %1$d/100. Reason: %2$s', 'disham-fraud-detector' ), $score, $reason ),
+            '🚨 ' . sprintf( __( 'FRAUD ALERT: Blocked by Hifqa. Score: %1$d/100. Reason: %2$s', 'hifqa-fraud-detector' ), $score, $reason ),
             false
         );
     } elseif ( $decision === 'REVIEW' ) {
         $order->add_order_note(
             /* translators: 1: fraud risk score out of 100, 2: reason for the decision */
-            '⚠️ ' . sprintf( __( 'FRAUD WARNING: Flagged for review. Score: %1$d/100. Reason: %2$s', 'disham-fraud-detector' ), $score, $reason ),
+            '⚠️ ' . sprintf( __( 'FRAUD WARNING: Flagged for review. Score: %1$d/100. Reason: %2$s', 'hifqa-fraud-detector' ), $score, $reason ),
             false
         );
     } else {
         $order->add_order_note(
             /* translators: %d: fraud risk score out of 100 */
-            '✅ ' . sprintf( __( 'FRAUD CHECK PASSED. Score: %d/100.', 'disham-fraud-detector' ), $score ),
+            '✅ ' . sprintf( __( 'FRAUD CHECK PASSED. Score: %d/100.', 'hifqa-fraud-detector' ), $score ),
             false
         );
     }
@@ -856,23 +856,23 @@ function aifd_send_alert_email( $order_id, $ai_result ) {
 
     $subject = $decision === 'BLOCK'
         /* translators: 1: order ID, 2: fraud risk score out of 100 */
-        ? '🚨 ' . sprintf( __( 'FRAUD ALERT: Order #%1$d Blocked — Score %2$d/100', 'disham-fraud-detector' ), $order_id, $score )
+        ? '🚨 ' . sprintf( __( 'FRAUD ALERT: Order #%1$d Blocked — Score %2$d/100', 'hifqa-fraud-detector' ), $order_id, $score )
         /* translators: 1: order ID, 2: fraud risk score out of 100 */
-        : '⚠️ ' . sprintf( __( 'FRAUD WARNING: Order #%1$d Needs Review — Score %2$d/100', 'disham-fraud-detector' ), $order_id, $score );
+        : '⚠️ ' . sprintf( __( 'FRAUD WARNING: Order #%1$d Needs Review — Score %2$d/100', 'hifqa-fraud-detector' ), $order_id, $score );
 
-    $message  = __( 'DISHAM has flagged an order.', 'disham-fraud-detector' ) . "\n\n";
-    $message .= __( 'Order ID:', 'disham-fraud-detector' ) . "    #" . $order_id . "\n";
-    $message .= __( 'Decision:', 'disham-fraud-detector' ) . "    " . $decision . "\n";
-    $message .= __( 'Risk Score:', 'disham-fraud-detector' ) . "  " . $score . "/100\n";
-    $message .= __( 'AI Provider:', 'disham-fraud-detector' ) . " " . strtoupper( $provider ) . "\n";
-    $message .= __( 'Reason:', 'disham-fraud-detector' ) . "      " . $reason . "\n\n";
-    $message .= __( 'Customer:', 'disham-fraud-detector' ) . "    " . $order->get_billing_first_name() . " " . $order->get_billing_last_name() . "\n";
-    $message .= __( 'Email:', 'disham-fraud-detector' ) . "       " . $order->get_billing_email() . "\n";
-    $message .= __( 'Total:', 'disham-fraud-detector' ) . "       " . $order->get_currency() . " " . $order->get_total() . "\n";
-    $message .= __( 'Billing:', 'disham-fraud-detector' ) . "     " . $order->get_billing_country() . "\n";
-    $message .= __( 'Shipping:', 'disham-fraud-detector' ) . "    " . $order->get_shipping_country() . "\n\n";
-    $message .= __( 'View Order:', 'disham-fraud-detector' ) . "  " . admin_url( 'post.php?post=' . $order_id . '&action=edit' ) . "\n\n";
-    $message .= "---\n" . __( 'DISHAM Plugin', 'disham-fraud-detector' ) . "\n";
+    $message  = __( 'Hifqa has flagged an order.', 'hifqa-fraud-detector' ) . "\n\n";
+    $message .= __( 'Order ID:', 'hifqa-fraud-detector' ) . "    #" . $order_id . "\n";
+    $message .= __( 'Decision:', 'hifqa-fraud-detector' ) . "    " . $decision . "\n";
+    $message .= __( 'Risk Score:', 'hifqa-fraud-detector' ) . "  " . $score . "/100\n";
+    $message .= __( 'AI Provider:', 'hifqa-fraud-detector' ) . " " . strtoupper( $provider ) . "\n";
+    $message .= __( 'Reason:', 'hifqa-fraud-detector' ) . "      " . $reason . "\n\n";
+    $message .= __( 'Customer:', 'hifqa-fraud-detector' ) . "    " . $order->get_billing_first_name() . " " . $order->get_billing_last_name() . "\n";
+    $message .= __( 'Email:', 'hifqa-fraud-detector' ) . "       " . $order->get_billing_email() . "\n";
+    $message .= __( 'Total:', 'hifqa-fraud-detector' ) . "       " . $order->get_currency() . " " . $order->get_total() . "\n";
+    $message .= __( 'Billing:', 'hifqa-fraud-detector' ) . "     " . $order->get_billing_country() . "\n";
+    $message .= __( 'Shipping:', 'hifqa-fraud-detector' ) . "    " . $order->get_shipping_country() . "\n\n";
+    $message .= __( 'View Order:', 'hifqa-fraud-detector' ) . "  " . admin_url( 'post.php?post=' . $order_id . '&action=edit' ) . "\n\n";
+    $message .= "---\n" . __( 'Hifqa Plugin', 'hifqa-fraud-detector' ) . "\n";
 
     wp_mail( $admin_email, $subject, $message );
 
@@ -1092,7 +1092,7 @@ function aifd_enforce_block_status( $order_id, $old_status, $new_status ) {
         $order->update_status(
             'on-hold',
             /* translators: %d: fraud risk score out of 100 */
-            '🚨 ' . sprintf( __( 'DISHAM: Order blocked (score: %d/100). Payment gateway override prevented.', 'disham-fraud-detector' ), (int) $order->get_meta( '_aifd_risk_score' ) )
+            '🚨 ' . sprintf( __( 'Hifqa: Order blocked (score: %d/100). Payment gateway override prevented.', 'hifqa-fraud-detector' ), (int) $order->get_meta( '_aifd_risk_score' ) )
         );
 
         $order->save();
@@ -1113,7 +1113,7 @@ function aifd_enforce_block_on_payment( $order_id ) {
 
         $order->update_status(
             'on-hold',
-            '🚨 ' . __( 'DISHAM: Payment received but order blocked due to HIGH fraud risk.', 'disham-fraud-detector' )
+            '🚨 ' . __( 'Hifqa: Payment received but order blocked due to HIGH fraud risk.', 'hifqa-fraud-detector' )
         );
 
         $order->save();
@@ -1174,6 +1174,6 @@ function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result )
     $log_entry .= "📊 SIGNALS:\n";
     $log_entry .= wp_json_encode( $signals, JSON_PRETTY_PRINT );
 
-    wc_get_logger()->info( $log_entry, array( 'source' => 'disham-fraud-detector' ) );
+    wc_get_logger()->info( $log_entry, array( 'source' => 'hifqa-fraud-detector' ) );
 
 }

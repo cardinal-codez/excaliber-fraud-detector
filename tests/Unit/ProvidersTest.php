@@ -1,5 +1,5 @@
 <?php
-namespace Disham\Tests\Unit;
+namespace Hifqa\Tests\Unit;
 
 use AIFD_Embeddings;
 use AIFD_FunctionCalling;
@@ -7,7 +7,7 @@ use AIFD_Pinecone;
 use AIFD_Provider_Gemini;
 use AIFD_Provider_Ollama;
 use AIFD_Provider_OpenAI;
-use Disham\Tests\TestCase;
+use Hifqa\Tests\TestCase;
 
 /**
  * AI providers, the function-calling agent, embeddings and Pinecone — all with faked HTTP.

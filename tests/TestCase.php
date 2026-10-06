@@ -1,9 +1,9 @@
 <?php
 /**
- * Shared base for DISHAM tests.
+ * Shared base for Hifqa tests.
  */
 
-namespace Disham\Tests;
+namespace Hifqa\Tests;
 
 use WC_Order;
 use WP_UnitTestCase;
@@ -110,7 +110,7 @@ abstract class TestCase extends WP_UnitTestCase {
 		foreach ( $props as $key => $value ) {
 			$order->{ 'set_' . $key }( $value );
 		}
-		$order->save(); // Fires woocommerce_new_order → DISHAM scoring.
+		$order->save(); // Fires woocommerce_new_order → Hifqa scoring.
 
 		return wc_get_order( $order->get_id() );
 	}
@@ -146,7 +146,7 @@ abstract class TestCase extends WP_UnitTestCase {
 		return wp_list_pluck( $mailer->mock_sent, 'subject' );
 	}
 
-	protected function disham_mail_subjects() {
+	protected function hifqa_mail_subjects() {
 		return array_values( array_filter( $this->sent_mail_subjects(), function ( $s ) {
 			return strpos( $s, 'FRAUD' ) !== false;
 		} ) );

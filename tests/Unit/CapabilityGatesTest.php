@@ -1,7 +1,7 @@
 <?php
-namespace Disham\Tests\Unit;
+namespace Hifqa\Tests\Unit;
 
-use Disham\Tests\TestCase;
+use Hifqa\Tests\TestCase;
 
 /**
  * Tier gates (vector + AI layers are opt-in) and the circuit breaker.

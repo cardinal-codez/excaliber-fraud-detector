@@ -1,15 +1,15 @@
 <?php
-namespace Disham\Tests\Integration;
+namespace Hifqa\Tests\Integration;
 
-use Disham\Tests\TestCase;
+use Hifqa\Tests\TestCase;
 
 /**
  * Admin screens: asset loading (the WordPress.org review items) and the provider-switch flow.
  */
 class AdminPagesTest extends TestCase {
 
-	const SETTINGS_HOOK  = 'disham_page_disham-fraud-detector-settings';
-	const DASHBOARD_HOOK = 'toplevel_page_disham-fraud-detector';
+	const SETTINGS_HOOK  = 'hifqa_page_hifqa-fraud-detector-settings';
+	const DASHBOARD_HOOK = 'toplevel_page_hifqa-fraud-detector';
 
 	public function set_up() {
 		parent::set_up();
@@ -27,7 +27,7 @@ class AdminPagesTest extends TestCase {
 
 	// ── Asset loading ──────────────────────────────────
 
-	public function test_menu_registers_disham_pages() {
+	public function test_menu_registers_hifqa_pages() {
 		set_current_screen( 'dashboard' );
 		aifd_register_menu();
 		aifd_register_settings_page();
@@ -132,7 +132,7 @@ class AdminPagesTest extends TestCase {
 		$this->assertSame( '', trim( ob_get_clean() ) );
 	}
 
-	public function test_notice_only_shows_on_disham_screens() {
+	public function test_notice_only_shows_on_hifqa_screens() {
 		update_option( 'aifd_provider_switched', array( 'from' => 'openai', 'to' => 'gemini', 'handled' => false ) );
 		set_current_screen( 'edit-post' );
 
@@ -143,7 +143,7 @@ class AdminPagesTest extends TestCase {
 
 	// ── Text domain matches the slug ───────────────────
 
-	public function test_all_translation_calls_use_the_disham_text_domain() {
+	public function test_all_translation_calls_use_the_hifqa_text_domain() {
 		$files = array_merge(
 			glob( AIFD_PATH . '*.php' ),
 			glob( AIFD_PATH . 'admin/*.php' ),
@@ -153,7 +153,7 @@ class AdminPagesTest extends TestCase {
 		foreach ( $files as $file ) {
 			preg_match_all( "/(?:__|_e|esc_html__|esc_html_e|esc_attr__|esc_attr_e|_x|_n)\(\s*'(?:[^'\\\\]|\\\\.)*'\s*,\s*'([^']+)'\s*\)/", file_get_contents( $file ), $m );
 			foreach ( $m[1] as $domain ) {
-				$this->assertSame( 'disham-fraud-detector', $domain, basename( $file ) );
+				$this->assertSame( 'hifqa-fraud-detector', $domain, basename( $file ) );
 			}
 		}
 	}

@@ -1,7 +1,7 @@
 <?php
-namespace Disham\Tests\Integration;
+namespace Hifqa\Tests\Integration;
 
-use Disham\Tests\TestCase;
+use Hifqa\Tests\TestCase;
 use WC_Logger;
 
 /**
@@ -27,7 +27,7 @@ class OrderScoringTest extends TestCase {
 
 		$notes = wp_list_pluck( wc_get_order_notes( array( 'order_id' => $order->get_id() ) ), 'content' );
 		$this->assertStringContainsString( 'FRAUD CHECK PASSED', implode( "\n", $notes ) );
-		$this->assertSame( array(), $this->disham_mail_subjects() );
+		$this->assertSame( array(), $this->hifqa_mail_subjects() );
 	}
 
 	public function test_suspicious_order_is_flagged_for_review_and_emails_admin() {
@@ -39,7 +39,7 @@ class OrderScoringTest extends TestCase {
 			$this->assertContains( $signal, $fired );
 		}
 
-		$subjects = $this->disham_mail_subjects();
+		$subjects = $this->hifqa_mail_subjects();
 		$this->assertCount( 1, $subjects );
 		$this->assertStringContainsString( 'Needs Review', $subjects[0] );
 		$this->assertSame( 1, (int) get_option( 'aifd_total_review' ) );
@@ -63,7 +63,7 @@ class OrderScoringTest extends TestCase {
 		$this->assertSame( 1, (int) get_option( 'aifd_total_blocked' ) );
 		$this->assertEquals( 900, (float) get_option( 'aifd_total_saved' ) );
 
-		$blocked_mails = array_filter( $this->disham_mail_subjects(), function ( $s ) {
+		$blocked_mails = array_filter( $this->hifqa_mail_subjects(), function ( $s ) {
 			return strpos( $s, 'Blocked' ) !== false;
 		} );
 		$this->assertCount( 1, $blocked_mails );

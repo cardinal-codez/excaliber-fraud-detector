@@ -1,16 +1,16 @@
 <?php
 /**
- * Plugin Name: DISHAM – AI Fraud Detector
- * Plugin URI: https://github.com/dilrubaummer/disham-fraud-detector
+ * Plugin Name: Hifqa – Fraud Detector for WooCommerce
+ * Plugin URI: https://github.com/dilrubaummer/hifqa-fraud-detector
  * Description: Real-time fraud detection for WooCommerce. Local signal scoring out of the box, with optional AI and vector search layers.
  * Version: 1.0.0
- * Author: DISHAM
+ * Author: Hifqa
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: disham-fraud-detector
+ * Text Domain: hifqa-fraud-detector
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -26,7 +26,7 @@ require_once AIFD_PATH . 'includes/providers/class-provider-anthropic.php';
 require_once AIFD_PATH . 'includes/providers/class-provider-gemini.php';
 require_once AIFD_PATH . 'includes/providers/class-provider-ollama.php';
 
-// In disham-fraud-detector.php
+// In hifqa-fraud-detector.php
 require_once plugin_dir_path(__FILE__) . 'includes/rest-api.php';
 require_once plugin_dir_path(__FILE__) . 'includes/fraud-detection.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin-menu.php';

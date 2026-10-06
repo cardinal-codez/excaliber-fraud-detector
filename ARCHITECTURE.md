@@ -1,4 +1,4 @@
-# DISHAM — Architecture Document
+# Hifqa — Architecture Document
 
 > Plugin version: 1.0.0
 > Last updated: July 2026
@@ -7,7 +7,7 @@
 
 ## Overview
 
-DISHAM is a production-grade WordPress plugin that uses AI function calling, Pinecone vector search, and per-merchant learning to detect and prevent ecommerce fraud in real time.
+Hifqa is a production-grade WordPress plugin that uses AI function calling, Pinecone vector search, and per-merchant learning to detect and prevent ecommerce fraud in real time.
 
 The plugin supports multiple AI providers — OpenAI, Anthropic, Google Gemini, and Ollama (local) — with provider-native embeddings and namespaced Pinecone indexes for full provider independence.
 
@@ -590,8 +590,8 @@ Risk Thresholds
 ## Full File Structure
 
 ```
-disham-fraud-detector/
-├── disham-fraud-detector.php                # Main plugin file — constants + requires
+hifqa-fraud-detector/
+├── hifqa-fraud-detector.php                # Main plugin file — constants + requires
 ├── readme.txt                           # WordPress.org readme (ships in the zip)
 ├── README.md                            # GitHub readme (dev-only, export-ignored)
 ├── ARCHITECTURE.md                      # This document (dev-only, export-ignored)

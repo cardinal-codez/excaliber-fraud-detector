@@ -1,6 +1,6 @@
 <?php
 /**
- * PHPUnit bootstrap — loads WordPress, WooCommerce and DISHAM into the test DB.
+ * PHPUnit bootstrap — loads WordPress, WooCommerce and Hifqa into the test DB.
  */
 
 $plugin_dir = dirname( __DIR__ );
@@ -18,7 +18,7 @@ $wc_dir = getenv( 'WC_DIR' ) ?: dirname( $plugin_dir ) . '/woocommerce';
 
 tests_add_filter( 'muplugins_loaded', function () use ( $plugin_dir, $wc_dir ) {
 	require_once $wc_dir . '/woocommerce.php';
-	require_once $plugin_dir . '/disham-fraud-detector.php';
+	require_once $plugin_dir . '/hifqa-fraud-detector.php';
 } );
 
 // Fresh WooCommerce tables + roles in the test DB.

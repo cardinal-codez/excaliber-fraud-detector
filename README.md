@@ -1,4 +1,4 @@
-# DISHAM — AI Fraud Detector
+# Hifqa — AI Fraud Detector
 
 > Production-grade AI-powered fraud detection plugin 
 > for WooCommerce using OpenAI function calling, 
@@ -8,7 +8,7 @@
 
 ## What It Does
 
-DISHAM analyzes every WooCommerce order 
+Hifqa analyzes every WooCommerce order 
 in real-time using an autonomous AI agent. 
 The agent evaluates 17 weighted fraud signals, 
 searches a vector database of known fraud patterns, 
@@ -222,7 +222,7 @@ needs an **empty** MySQL database — every table in it is dropped on each run.
 
 ```bash
 composer install
-mysql -uroot -proot -e "CREATE DATABASE disham_tests"
+mysql -uroot -proot -e "CREATE DATABASE hifqa_tests"
 composer test
 ```
 
