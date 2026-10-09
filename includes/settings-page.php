@@ -31,6 +31,13 @@ function aifd_enqueue_settings_script( $hook ) {
     );
     if ( ! in_array( $hook, array_filter( $hooks ), true ) ) return;
 
+    wp_enqueue_style(
+        'aifd-admin',
+        AIFD_URL . 'assets/css/admin.css',
+        array(),
+        AIFD_VERSION
+    );
+
     wp_enqueue_script(
         'aifd-settings',
         AIFD_URL . 'assets/js/settings.js',
@@ -45,6 +52,10 @@ function aifd_enqueue_settings_script( $hook ) {
         'ajaxurl' => admin_url( 'admin-ajax.php' ),
         'i18n'    => array(
             'loadingSeeds'  => __( 'Embedding and loading patterns…', 'hifqa-fraud-detector' ),
+            /* translators: 1: number of patterns processed so far, 2: total number of patterns */
+            'seedProgress'  => __( 'Loading patterns… %1$s of %2$s', 'hifqa-fraud-detector' ),
+            /* translators: 1: number of patterns loaded, 2: total number of patterns, 3: number that failed */
+            'seedDone'      => __( 'Loaded %1$s of %2$s patterns. Failed: %3$s', 'hifqa-fraud-detector' ),
             'reembedding'   => __( 'Re-embedding patterns…', 'hifqa-fraud-detector' ),
             'requestFailed' => __( 'Request failed', 'hifqa-fraud-detector' ),
             'confirmFresh'  => __( 'Start fresh? Your learned patterns from the old provider will not be migrated.', 'hifqa-fraud-detector' ),
@@ -59,98 +70,220 @@ function aifd_enqueue_settings_script( $hook ) {
 
 add_action( 'admin_init', 'aifd_register_settings' );
 
+/**
+ * Chat models offered for each provider — the first one is the default.
+ */
+function aifd_get_allowed_models() {
+    return array(
+        'aifd_openai_model'    => array( 'gpt-4o-mini', 'gpt-4o' ),
+        'aifd_anthropic_model' => array( 'claude-haiku-4-5-20251001', 'claude-sonnet-4-6' ),
+        'aifd_gemini_model'    => array( 'gemini-2.5-flash', 'gemini-2.5-pro' ),
+    );
+}
+
+/**
+ * True while options.php is saving this plugin's settings form.
+ */
+function aifd_is_settings_form_save() {
+
+    if ( ! isset( $_POST['option_page'], $_POST['_wpnonce'] ) ) {
+        return false;
+    }
+
+    if ( 'aifd_settings' !== sanitize_key( wp_unslash( $_POST['option_page'] ) ) ) {
+        return false;
+    }
+
+    return (bool) wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'aifd_settings-options' );
+
+}
+
+/**
+ * Saved keys are never printed into the form, so a blank field means "no
+ * change". A key is replaced only by a new value, and removed only by ticking
+ * the field's "Remove the saved key" box.
+ */
+function aifd_sanitize_api_key( $value, $option ) {
+
+    $value = is_string( $value ) ? trim( sanitize_text_field( $value ) ) : '';
+
+    // Outside the settings form (WP-CLI, code) the value is taken as given.
+    if ( '' !== $value || ! aifd_is_settings_form_save() ) {
+        return $value;
+    }
+
+    // Nonce verified in aifd_is_settings_form_save().
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing
+    $remove = isset( $_POST['aifd_clear_keys'] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST['aifd_clear_keys'] ) ) : array();
+
+    if ( in_array( $option, $remove, true ) ) {
+        return '';
+    }
+
+    return (string) get_option( $option, '' );
+
+}
+
+function aifd_sanitize_provider( $value ) {
+    $value = sanitize_key( (string) $value );
+    return in_array( $value, aifd_get_allowed_providers(), true ) ? $value : 'openai';
+}
+
+function aifd_sanitize_model( $value, $option ) {
+    $allowed = aifd_get_allowed_models()[ $option ];
+    $value   = sanitize_text_field( (string) $value );
+    return in_array( $value, $allowed, true ) ? $value : $allowed[0];
+}
+
+function aifd_sanitize_ollama_model( $value ) {
+    // Ollama model names look like "llama3", "qwen2.5:7b" or "library/model:tag".
+    $value = preg_replace( '/[^A-Za-z0-9._:\/\-]/', '', (string) $value );
+    return '' === $value ? 'llama3' : $value;
+}
+
+function aifd_sanitize_block_threshold( $value ) {
+    return min( 100, max( 1, absint( $value ) ) );
+}
+
+function aifd_sanitize_review_threshold( $value ) {
+    return min( 100, absint( $value ) );
+}
+
+function aifd_sanitize_pinecone_host( $value ) {
+    // Order data is only ever sent to Pinecone over HTTPS.
+    return esc_url_raw( trim( (string) $value ), array( 'https' ) );
+}
+
+function aifd_sanitize_ollama_host( $value ) {
+    return esc_url_raw( trim( (string) $value ), array( 'http', 'https' ) );
+}
+
 function aifd_register_settings() {
 
     // AI Provider selection
     register_setting( 'aifd_settings', 'aifd_ai_provider', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'openai'
+        'type'              => 'string',
+        'sanitize_callback' => 'aifd_sanitize_provider',
+        'default'           => 'openai',
     ));
 
-    // OpenAI
-    register_setting( 'aifd_settings', 'aifd_openai_key', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => ''
-    ));
-    register_setting( 'aifd_settings', 'aifd_openai_model', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'gpt-4o-mini'
-    ));
+    // API keys — OpenAI, Anthropic, Gemini, Voyage AI, Pinecone
+    foreach ( aifd_get_api_key_options() as $option ) {
+        register_setting( 'aifd_settings', $option, array(
+            'type'              => 'string',
+            'sanitize_callback' => function ( $value ) use ( $option ) {
+                return aifd_sanitize_api_key( $value, $option );
+            },
+            'default'           => '',
+        ));
+    }
 
-    // Anthropic
-    register_setting( 'aifd_settings', 'aifd_anthropic_key', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => ''
-    ));
-    register_setting( 'aifd_settings', 'aifd_anthropic_model', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'claude-haiku-4-5-20251001'
-    ));
-
-    // Gemini
-    register_setting( 'aifd_settings', 'aifd_gemini_key', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => ''
-    ));
-    register_setting( 'aifd_settings', 'aifd_gemini_model', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'gemini-2.5-flash'
-    ));
+    // Chat model per provider
+    foreach ( aifd_get_allowed_models() as $option => $models ) {
+        register_setting( 'aifd_settings', $option, array(
+            'type'              => 'string',
+            'sanitize_callback' => function ( $value ) use ( $option ) {
+                return aifd_sanitize_model( $value, $option );
+            },
+            'default'           => $models[0],
+        ));
+    }
 
     // Ollama
     register_setting( 'aifd_settings', 'aifd_ollama_host', array(
-        'sanitize_callback' => 'esc_url_raw',
-        'default'           => 'http://localhost:11434'
+        'type'              => 'string',
+        'sanitize_callback' => 'aifd_sanitize_ollama_host',
+        'default'           => 'http://localhost:11434',
     ));
     register_setting( 'aifd_settings', 'aifd_ollama_model', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'llama3'
+        'type'              => 'string',
+        'sanitize_callback' => 'aifd_sanitize_ollama_model',
+        'default'           => 'llama3',
     ));
 
     // Risk thresholds
     register_setting( 'aifd_settings', 'aifd_block_threshold', array(
-        'sanitize_callback' => 'absint',
-        'default'           => 70
+        'type'              => 'integer',
+        'sanitize_callback' => 'aifd_sanitize_block_threshold',
+        'default'           => 70,
     ));
     register_setting( 'aifd_settings', 'aifd_review_threshold', array(
-        'sanitize_callback' => 'absint',
-        'default'           => 40
+        'type'              => 'integer',
+        'sanitize_callback' => 'aifd_sanitize_review_threshold',
+        'default'           => 40,
     ));
 
-    // Pinecone settings
-    register_setting( 'aifd_settings', 'aifd_pinecone_key', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => ''
-    ));
+    // Pinecone
     register_setting( 'aifd_settings', 'aifd_pinecone_host', array(
-        'sanitize_callback' => 'esc_url_raw',
-        'default'           => ''
-    ));
-    register_setting( 'aifd_settings', 'aifd_pinecone_index', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'fraud-patterns'
+        'type'              => 'string',
+        'sanitize_callback' => 'aifd_sanitize_pinecone_host',
+        'default'           => '',
     ));
 
-    // Add to register_settings:
-    register_setting( 'aifd_settings', 'aifd_voyage_key', array(
-        'sanitize_callback' => 'sanitize_text_field',
-        'default'           => ''
-    ));
-
-    // Add these Pinecone index settings per provider:
+    // Pinecone index name per embedding dimension
     register_setting( 'aifd_settings', 'aifd_pinecone_index_openai', array(
+        'type'              => 'string',
         'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'fraud-patterns-1536'
+        'default'           => 'fraud-patterns-1536',
     ));
     register_setting( 'aifd_settings', 'aifd_pinecone_index_anthropic', array(
+        'type'              => 'string',
         'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'fraud-patterns-1024'
+        'default'           => 'fraud-patterns-1024',
     ));
     register_setting( 'aifd_settings', 'aifd_pinecone_index_768', array(
+        'type'              => 'string',
         'sanitize_callback' => 'sanitize_text_field',
-        'default'           => 'fraud-patterns-768'
+        'default'           => 'fraud-patterns-768',
     ));
 
+}
+
+/**
+ * An API key field that never contains the saved key.
+ */
+function aifd_render_api_key_field( $option, $placeholder ) {
+
+    $has_key = '' !== (string) get_option( $option, '' );
+    ?>
+    <input type="password"
+        name="<?php echo esc_attr( $option ); ?>"
+        value=""
+        class="regular-text"
+        autocomplete="new-password"
+        placeholder="<?php echo esc_attr( $has_key ? __( '•••••••••••• saved — leave blank to keep', 'hifqa-fraud-detector' ) : $placeholder ); ?>">
+    <?php if ( $has_key ) : ?>
+        <label class="aifd-clear-key">
+            <input type="checkbox" name="aifd_clear_keys[]" value="<?php echo esc_attr( $option ); ?>">
+            <?php esc_html_e( 'Remove the saved key', 'hifqa-fraud-detector' ); ?>
+        </label>
+    <?php endif; ?>
+    <?php
+
+}
+
+/**
+ * A model dropdown built from the allowed list.
+ */
+function aifd_render_model_select( $option, $labels ) {
+
+    $models  = aifd_get_allowed_models()[ $option ];
+    $current = get_option( $option, $models[0] );
+    ?>
+    <select name="<?php echo esc_attr( $option ); ?>">
+        <?php foreach ( $models as $model ) : ?>
+            <option value="<?php echo esc_attr( $model ); ?>" <?php selected( $current, $model ); ?>><?php echo esc_html( $labels[ $model ] ?? $model ); ?></option>
+        <?php endforeach; ?>
+    </select>
+    <?php
+
+}
+
+/**
+ * A link to a third party's own site.
+ */
+function aifd_external_link( $url, $label ) {
+    return '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $label ) . '</a>';
 }
 
 // ══════════════════════════════════════════════
@@ -159,59 +292,97 @@ function aifd_register_settings() {
 
 function aifd_render_settings_page() {
 
-    $provider = get_option( 'aifd_ai_provider', 'openai' );
+    $provider   = get_option( 'aifd_ai_provider', 'openai' );
+    $embeddings = new AIFD_Embeddings();
+    $pinecone   = new AIFD_Pinecone();
+
+    // Vector memory is configured but the selected provider cannot embed: say so plainly.
+    $vector_problem = $pinecone->is_configured() ? $embeddings->get_setup_problem( $provider ) : '';
     ?>
 
-    <div class="wrap">
-        <h1><?php esc_html_e( 'Hifqa — Settings', 'hifqa-fraud-detector' ); ?></h1>
+    <div class="wrap aifd-settings">
+        <h1><?php esc_html_e( 'HIFQA Fraud Detector — Settings', 'hifqa-fraud-detector' ); ?></h1>
+
+        <?php settings_errors(); ?>
+
+        <?php if ( '' !== $vector_problem ) : ?>
+            <div class="notice notice-warning inline">
+                <p>
+                    <strong><?php esc_html_e( 'Vector memory is not running.', 'hifqa-fraud-detector' ); ?></strong>
+                    <?php echo esc_html( $vector_problem ); ?>
+                </p>
+            </div>
+        <?php endif; ?>
 
         <form method="post" action="options.php">
             <?php settings_fields( 'aifd_settings' ); ?>
 
-            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;margin-bottom:20px">
+            <div class="aifd-callout aifd-callout--success">
                 <strong>✅ <?php esc_html_e( 'Local Fraud Detection — Always Active', 'hifqa-fraud-detector' ); ?></strong>
-                <p style="margin:6px 0 0;font-size:13px;color:#166534">
-                    <?php esc_html_e( 'A 17-signal weighted scoring engine checks every order automatically. It is pure PHP, needs no API keys, sends no order data to external services, and adds negligible overhead to checkout. This is the foundation — everything below is optional.', 'hifqa-fraud-detector' ); ?>
+                <p>
+                    <?php esc_html_e( 'A 17-signal weighted scoring engine checks every order automatically. It is pure PHP, needs no API keys and sends no order data to external services. This is the foundation — everything below is optional.', 'hifqa-fraud-detector' ); ?>
                 </p>
             </div>
 
-            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin-bottom:20px">
+            <div class="aifd-callout aifd-callout--info">
                 <strong>ℹ️ <?php esc_html_e( 'Optional layers activate automatically once configured', 'hifqa-fraud-detector' ); ?></strong>
-                <p style="margin:6px 0 0;font-size:13px;color:#1d4ed8">
+                <p>
                     <?php esc_html_e( 'Add a Pinecone key below to enable vector pattern search. Add an AI provider key to enable AI reasoning. Each layer turns on the moment its keys are saved — no separate toggle needed.', 'hifqa-fraud-detector' ); ?>
                 </p>
+                <p>
+                    <?php esc_html_e( 'These layers call the external service while the order is being placed, so checkout waits for the reply. If a service is slow, checkout is slower; if it fails, the order is scored by the local rules alone, and after three failures in a row the layer is paused for ten minutes.', 'hifqa-fraud-detector' ); ?>
+                </p>
             </div>
 
-            <div id="third-party-disclosure" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;margin:16px 0">
+            <div id="third-party-disclosure" class="aifd-callout aifd-callout--neutral">
                 <strong><?php esc_html_e( 'Third-Party Data Disclosure', 'hifqa-fraud-detector' ); ?></strong>
-                <table style="width:100%;margin-top:10px;font-size:13px">
-                    <tr style="border-bottom:1px solid #e2e8f0">
-                        <th style="text-align:left;padding:6px 0"><?php esc_html_e( 'Service', 'hifqa-fraud-detector' ); ?></th>
-                        <th style="text-align:left;padding:6px 0"><?php esc_html_e( 'Data Sent', 'hifqa-fraud-detector' ); ?></th>
-                        <th style="text-align:left;padding:6px 0"><?php esc_html_e( 'Purpose', 'hifqa-fraud-detector' ); ?></th>
-                    </tr>
-                    <tr style="border-bottom:1px solid #f1f5f9">
-                        <td style="padding:6px 0">OpenAI / Anthropic / Gemini</td>
-                        <td style="padding:6px 0"><?php esc_html_e( 'Email, IP, country, order total, payment method', 'hifqa-fraud-detector' ); ?></td>
-                        <td style="padding:6px 0"><?php esc_html_e( 'AI risk scoring (Tier 2 only)', 'hifqa-fraud-detector' ); ?></td>
-                    </tr>
-                    <tr style="border-bottom:1px solid #f1f5f9">
-                        <td style="padding:6px 0">OpenAI / Voyage / Gemini / Ollama</td>
-                        <td style="padding:6px 0"><?php esc_html_e( 'Signal pattern text only (no PII)', 'hifqa-fraud-detector' ); ?></td>
-                        <td style="padding:6px 0"><?php esc_html_e( 'Embedding generation (Tier 1 only)', 'hifqa-fraud-detector' ); ?></td>
+                <p><?php esc_html_e( 'Nothing is sent anywhere until you save a key for that service. Customer names, full email addresses, IP addresses, phone numbers and street addresses are never sent to any of them.', 'hifqa-fraud-detector' ); ?></p>
+                <table class="aifd-disclosure-table">
+                    <tr>
+                        <th><?php esc_html_e( 'Service', 'hifqa-fraud-detector' ); ?></th>
+                        <th><?php esc_html_e( 'Data Sent', 'hifqa-fraud-detector' ); ?></th>
+                        <th><?php esc_html_e( 'Purpose', 'hifqa-fraud-detector' ); ?></th>
                     </tr>
                     <tr>
-                        <td style="padding:6px 0">Pinecone</td>
-                        <td style="padding:6px 0"><?php esc_html_e( 'Pattern vectors + metadata (no PII)', 'hifqa-fraud-detector' ); ?></td>
-                        <td style="padding:6px 0"><?php esc_html_e( 'Vector storage and search (Tier 1 only)', 'hifqa-fraud-detector' ); ?></td>
+                        <td>OpenAI / Anthropic / Google Gemini</td>
+                        <td><?php esc_html_e( 'Order total, the domain of the billing email (not the address itself), billing and shipping country, payment method, how many earlier orders used the same email, the store average order value, and which risk signals fired', 'hifqa-fraud-detector' ); ?></td>
+                        <td><?php esc_html_e( 'AI risk scoring (AI reasoning layer)', 'hifqa-fraud-detector' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td>OpenAI / Voyage AI / Google Gemini</td>
+                        <td><?php esc_html_e( 'Pattern text only: the names of the risk signals that fired, the payment method and the billing-to-shipping country pair', 'hifqa-fraud-detector' ); ?></td>
+                        <td><?php esc_html_e( 'Embedding generation (vector memory layer)', 'hifqa-fraud-detector' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Pinecone</td>
+                        <td><?php esc_html_e( 'The pattern vector and the same pattern text. No order number, score or customer detail', 'hifqa-fraud-detector' ); ?></td>
+                        <td><?php esc_html_e( 'Vector storage and search (vector memory layer)', 'hifqa-fraud-detector' ); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Ollama</td>
+                        <td><?php esc_html_e( 'The same data as the two rows above, sent to the Ollama host URL you enter', 'hifqa-fraud-detector' ); ?></td>
+                        <td><?php esc_html_e( 'AI risk scoring and embeddings on a server you run', 'hifqa-fraud-detector' ); ?></td>
                     </tr>
                 </table>
-                <p style="margin-top:10px;font-size:12px;color:#64748b">
-                    <?php esc_html_e( 'Links:', 'hifqa-fraud-detector' ); ?> <a href="https://openai.com/policies/privacy-policy" target="_blank">OpenAI Privacy Policy</a> ·
-                    <a href="https://www.anthropic.com/legal/privacy" target="_blank">Anthropic Privacy Policy</a> ·
-                    <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a> ·
-                    <a href="https://www.pinecone.io/legal/privacy-policy/" target="_blank">Pinecone Privacy Policy</a> ·
-                    <a href="https://www.voyageai.com/privacy" target="_blank">Voyage AI Privacy Policy</a>
+                <p class="aifd-links">
+                    <?php
+                    $links = array(
+                        aifd_external_link( 'https://openai.com/policies/privacy-policy', __( 'OpenAI Privacy Policy', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://openai.com/policies/services-agreement/', __( 'OpenAI Terms', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://www.anthropic.com/legal/privacy', __( 'Anthropic Privacy Policy', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://www.anthropic.com/legal/commercial-terms', __( 'Anthropic Terms', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://policies.google.com/privacy', __( 'Google Privacy Policy', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://ai.google.dev/gemini-api/terms', __( 'Gemini API Terms', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://www.voyageai.com/privacy', __( 'Voyage AI Privacy Policy', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://www.voyageai.com/tos', __( 'Voyage AI Terms', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://www.pinecone.io/privacy/', __( 'Pinecone Privacy Policy', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://www.pinecone.io/terms/', __( 'Pinecone Terms', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://ollama.com/privacy', __( 'Ollama Privacy Policy', 'hifqa-fraud-detector' ) ),
+                        aifd_external_link( 'https://ollama.com/terms', __( 'Ollama Terms', 'hifqa-fraud-detector' ) ),
+                    );
+                    // Each link is escaped inside aifd_external_link().
+                    echo implode( ' · ', $links ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                    ?>
                 </p>
             </div>
 
@@ -223,7 +394,7 @@ function aifd_render_settings_page() {
                         <label><input type="radio" name="aifd_ai_provider" value="openai" <?php checked( $provider, 'openai' ); ?>> OpenAI</label><br>
                         <label><input type="radio" name="aifd_ai_provider" value="anthropic" <?php checked( $provider, 'anthropic' ); ?>> Anthropic (Claude)</label><br>
                         <label><input type="radio" name="aifd_ai_provider" value="gemini" <?php checked( $provider, 'gemini' ); ?>> Google Gemini</label><br>
-                        <label><input type="radio" name="aifd_ai_provider" value="ollama" <?php checked( $provider, 'ollama' ); ?>> <?php esc_html_e( 'Ollama (Local — Private)', 'hifqa-fraud-detector' ); ?></label>
+                        <label><input type="radio" name="aifd_ai_provider" value="ollama" <?php checked( $provider, 'ollama' ); ?>> <?php esc_html_e( 'Ollama (self-hosted)', 'hifqa-fraud-detector' ); ?></label>
                     </td>
                 </tr>
             </table>
@@ -232,17 +403,16 @@ function aifd_render_settings_page() {
             <table class="form-table">
                 <tr>
                     <th scope="row"><?php esc_html_e( 'API Key', 'hifqa-fraud-detector' ); ?></th>
-                    <td>
-                        <input type="password" name="aifd_openai_key" value="<?php echo esc_attr( get_option( 'aifd_openai_key' ) ); ?>" class="regular-text" placeholder="sk-proj-...">
-                    </td>
+                    <td><?php aifd_render_api_key_field( 'aifd_openai_key', 'sk-proj-...' ); ?></td>
                 </tr>
                 <tr>
                     <th scope="row"><?php esc_html_e( 'Model', 'hifqa-fraud-detector' ); ?></th>
                     <td>
-                        <select name="aifd_openai_model">
-                            <option value="gpt-4o-mini" <?php selected( get_option( 'aifd_openai_model' ), 'gpt-4o-mini' ); ?>><?php esc_html_e( 'gpt-4o-mini (recommended)', 'hifqa-fraud-detector' ); ?></option>
-                            <option value="gpt-4o" <?php selected( get_option( 'aifd_openai_model' ), 'gpt-4o' ); ?>>gpt-4o</option>
-                        </select>
+                        <?php
+                        aifd_render_model_select( 'aifd_openai_model', array(
+                            'gpt-4o-mini' => __( 'gpt-4o-mini (recommended)', 'hifqa-fraud-detector' ),
+                        ) );
+                        ?>
                     </td>
                 </tr>
             </table>
@@ -251,31 +421,27 @@ function aifd_render_settings_page() {
             <table class="form-table">
                 <tr>
                     <th scope="row"><?php esc_html_e( 'API Key', 'hifqa-fraud-detector' ); ?></th>
-                    <td>
-                        <input type="password" name="aifd_anthropic_key" value="<?php echo esc_attr( get_option( 'aifd_anthropic_key' ) ); ?>" class="regular-text" placeholder="sk-ant-...">
-                    </td>
+                    <td><?php aifd_render_api_key_field( 'aifd_anthropic_key', 'sk-ant-...' ); ?></td>
                 </tr>
                 <tr>
                     <th scope="row"><?php esc_html_e( 'Model', 'hifqa-fraud-detector' ); ?></th>
                     <td>
-                        <select name="aifd_anthropic_model">
-                            <option value="claude-haiku-4-5-20251001" <?php selected( get_option( 'aifd_anthropic_model' ), 'claude-haiku-4-5-20251001' ); ?>><?php esc_html_e( 'Claude Haiku 4.5 (recommended)', 'hifqa-fraud-detector' ); ?></option>
-                            <option value="claude-sonnet-4-6" <?php selected( get_option( 'aifd_anthropic_model' ), 'claude-sonnet-4-6' ); ?>>Claude Sonnet 4.6</option>
-                        </select>
+                        <?php
+                        aifd_render_model_select( 'aifd_anthropic_model', array(
+                            'claude-haiku-4-5-20251001' => __( 'Claude Haiku 4.5 (recommended)', 'hifqa-fraud-detector' ),
+                            'claude-sonnet-4-6'         => 'Claude Sonnet 4.6',
+                        ) );
+                        ?>
                     </td>
                 </tr>
 
                 <tr>
-                    <th scope="row"><?php esc_html_e( 'Voyage AI Key', 'hifqa-fraud-detector' ); ?> <span style="color:#856404"><?php esc_html_e( '(for embeddings)', 'hifqa-fraud-detector' ); ?></span></th>
+                    <th scope="row"><?php esc_html_e( 'Voyage AI Key', 'hifqa-fraud-detector' ); ?> <span class="aifd-warn"><?php esc_html_e( '(for embeddings)', 'hifqa-fraud-detector' ); ?></span></th>
                     <td>
-                        <input type="password"
-                            name="aifd_voyage_key"
-                            value="<?php echo esc_attr( get_option('aifd_voyage_key') ); ?>"
-                            class="regular-text"
-                            placeholder="pa-...">
-                        <p class="description" style="color:#856404">
-                            ⚠️ <?php esc_html_e( 'Anthropic doesn\'t provide embeddings. Get a free Voyage AI key at', 'hifqa-fraud-detector' ); ?>
-                            <a href="https://www.voyageai.com" target="_blank">voyageai.com</a>
+                        <?php aifd_render_api_key_field( 'aifd_voyage_key', 'pa-...' ); ?>
+                        <p class="description aifd-warn">
+                            ⚠️ <?php esc_html_e( 'Anthropic has no embedding model, so vector memory with Anthropic uses Voyage AI. Without a Voyage AI key, vector memory stays off — pattern text is never sent to a different provider instead. Get a key at', 'hifqa-fraud-detector' ); ?>
+                            <?php echo aifd_external_link( 'https://www.voyageai.com', 'voyageai.com' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in aifd_external_link(). ?>
                         </p>
                     </td>
                 </tr>
@@ -285,35 +451,35 @@ function aifd_render_settings_page() {
             <table class="form-table">
                 <tr>
                     <th scope="row"><?php esc_html_e( 'API Key', 'hifqa-fraud-detector' ); ?></th>
-                    <td>
-                        <input type="password" name="aifd_gemini_key" value="<?php echo esc_attr( get_option( 'aifd_gemini_key' ) ); ?>" class="regular-text" placeholder="AIza...">
-                    </td>
+                    <td><?php aifd_render_api_key_field( 'aifd_gemini_key', 'AIza...' ); ?></td>
                 </tr>
                 <tr>
                     <th scope="row"><?php esc_html_e( 'Model', 'hifqa-fraud-detector' ); ?></th>
                     <td>
-                        <select name="aifd_gemini_model">
-                            <option value="gemini-2.5-flash" <?php selected( get_option( 'aifd_gemini_model' ), 'gemini-2.5-flash' ); ?>><?php esc_html_e( 'Gemini 2.5 Flash (recommended)', 'hifqa-fraud-detector' ); ?></option>
-                            <option value="gemini-2.5-pro" <?php selected( get_option( 'aifd_gemini_model' ), 'gemini-2.5-pro' ); ?>>Gemini 2.5 Pro</option>
-                            <option value="gemini-2.0-flash" <?php selected( get_option( 'aifd_gemini_model' ), 'gemini-2.0-flash' ); ?>>Gemini 2.0 Flash</option>
-                        </select>
+                        <?php
+                        aifd_render_model_select( 'aifd_gemini_model', array(
+                            'gemini-2.5-flash' => __( 'Gemini 2.5 Flash (recommended)', 'hifqa-fraud-detector' ),
+                            'gemini-2.5-pro'   => 'Gemini 2.5 Pro',
+                        ) );
+                        ?>
                     </td>
                 </tr>
             </table>
 
-            <h2><?php esc_html_e( 'Ollama Settings (Local AI)', 'hifqa-fraud-detector' ); ?></h2>
-            <div style="background:#fff3cd;border:1px solid #f59e0b;border-radius:6px;padding:12px 16px;margin-bottom:16px">
-                <strong>⚠️ <?php esc_html_e( 'Ollama — Local Deployment Only', 'hifqa-fraud-detector' ); ?></strong>
-                <p style="margin:6px 0 0">
-                    <?php echo wp_kses( __( 'Ollama requires a locally running LLM server on the same machine as WordPress. It is <strong>not compatible with shared hosting</strong> environments (Cloudways, SiteGround, Bluehost, WP Engine etc).', 'hifqa-fraud-detector' ), array( 'strong' => array() ) ); ?>
+            <h2><?php esc_html_e( 'Ollama Settings (Self-Hosted AI)', 'hifqa-fraud-detector' ); ?></h2>
+            <div class="aifd-callout aifd-callout--warning">
+                <strong>⚠️ <?php esc_html_e( 'Ollama — Self-Hosted Only', 'hifqa-fraud-detector' ); ?></strong>
+                <p>
+                    <?php echo wp_kses( __( 'Ollama needs an LLM server that you run yourself. It is <strong>not compatible with shared hosting</strong> environments (Cloudways, SiteGround, Bluehost, WP Engine etc).', 'hifqa-fraud-detector' ), array( 'strong' => array() ) ); ?>
                 </p>
-                <p style="margin:6px 0 0"><?php esc_html_e( 'Ollama works for:', 'hifqa-fraud-detector' ); ?></p>
-                <ul style="margin:4px 0 0;padding-left:20px">
+                <p><?php esc_html_e( 'Order data is sent to whatever host URL you enter below. It stays on your own infrastructure only if that host is a server you control.', 'hifqa-fraud-detector' ); ?></p>
+                <p><?php esc_html_e( 'Ollama works for:', 'hifqa-fraud-detector' ); ?></p>
+                <ul>
                     <li><?php esc_html_e( 'Local development environments', 'hifqa-fraud-detector' ); ?></li>
                     <li><?php esc_html_e( 'Self-hosted VPS with 8GB+ RAM', 'hifqa-fraud-detector' ); ?></li>
                     <li><?php esc_html_e( 'Dedicated servers where you control the environment', 'hifqa-fraud-detector' ); ?></li>
                 </ul>
-                <p style="margin:6px 0 0">
+                <p>
                     <?php esc_html_e( 'If you are on shared hosting, choose OpenAI, Anthropic, or Gemini instead.', 'hifqa-fraud-detector' ); ?>
                 </p>
             </div>
@@ -337,7 +503,7 @@ function aifd_render_settings_page() {
                             class="regular-text"
                             placeholder="llama3, mistral, qwen2.5...">
                         <p class="description">
-                            <?php esc_html_e( 'Must support embeddings via nomic-embed-text. Run:', 'hifqa-fraud-detector' ); ?> <code>ollama pull nomic-embed-text</code>
+                            <?php esc_html_e( 'Vector memory with Ollama also needs the nomic-embed-text model. Run:', 'hifqa-fraud-detector' ); ?> <code>ollama pull nomic-embed-text</code>
                         </p>
                     </td>
                 </tr>
@@ -349,15 +515,15 @@ function aifd_render_settings_page() {
                 <tr>
                     <th scope="row"><?php esc_html_e( 'Block Threshold', 'hifqa-fraud-detector' ); ?></th>
                     <td>
-                        <input type="number" name="aifd_block_threshold" value="<?php echo esc_attr( get_option( 'aifd_block_threshold', 70 ) ); ?>" min="0" max="100" class="small-text"> / 100
-                        <p class="description"><?php esc_html_e( 'Orders above this score are blocked automatically.', 'hifqa-fraud-detector' ); ?></p>
+                        <input type="number" name="aifd_block_threshold" value="<?php echo esc_attr( get_option( 'aifd_block_threshold', 70 ) ); ?>" min="1" max="100" class="small-text"> / 100
+                        <p class="description"><?php esc_html_e( 'Orders scoring this or higher are put on hold automatically.', 'hifqa-fraud-detector' ); ?></p>
                     </td>
                 </tr>
                 <tr>
                     <th scope="row"><?php esc_html_e( 'Review Threshold', 'hifqa-fraud-detector' ); ?></th>
                     <td>
                         <input type="number" name="aifd_review_threshold" value="<?php echo esc_attr( get_option( 'aifd_review_threshold', 40 ) ); ?>" min="0" max="100" class="small-text"> / 100
-                        <p class="description"><?php esc_html_e( 'Orders above this score require manual review.', 'hifqa-fraud-detector' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'Orders scoring this or higher are flagged for manual review. If it is set above the block threshold, the block threshold is used for both.', 'hifqa-fraud-detector' ); ?></p>
                     </td>
                 </tr>
             </table>
@@ -366,13 +532,7 @@ function aifd_render_settings_page() {
             <table class="form-table">
                 <tr>
                     <th scope="row"><?php esc_html_e( 'API Key', 'hifqa-fraud-detector' ); ?></th>
-                    <td>
-                        <input type="password"
-                            name="aifd_pinecone_key"
-                            value="<?php echo esc_attr( get_option('aifd_pinecone_key') ); ?>"
-                            class="regular-text"
-                            placeholder="pcsk-xxxxxxxxxxxxxxxx">
-                    </td>
+                    <td><?php aifd_render_api_key_field( 'aifd_pinecone_key', 'pcsk-xxxxxxxxxxxxxxxx' ); ?></td>
                 </tr>
                 <tr>
                     <th scope="row"><?php esc_html_e( 'Index Host URL', 'hifqa-fraud-detector' ); ?></th>
@@ -383,20 +543,20 @@ function aifd_render_settings_page() {
                             class="regular-text"
                             placeholder="https://fraud-patterns-xxx.svc.xxx.pinecone.io">
                         <p class="description">
-                            <?php esc_html_e( 'The index host depends on which provider you select below — each embedding dimension needs its own index.', 'hifqa-fraud-detector' ); ?>
+                            <?php esc_html_e( 'Must start with https://. The index host depends on which provider you select — each embedding dimension needs its own index.', 'hifqa-fraud-detector' ); ?>
                         </p>
                     </td>
                 </tr>
             </table>
 
-            <h3 style="margin-top:1.5rem"><?php esc_html_e( 'Index Per Embedding Dimension', 'hifqa-fraud-detector' ); ?></h3>
-            <p class="description" style="margin-bottom:10px">
-                <?php esc_html_e( 'Different providers produce different vector sizes. Create one Pinecone index per dimension and enter the names below — the plugin automatically picks the right one.', 'hifqa-fraud-detector' ); ?>
+            <h3><?php esc_html_e( 'Index Per Embedding Dimension', 'hifqa-fraud-detector' ); ?></h3>
+            <p class="description">
+                <?php esc_html_e( 'Different providers produce different vector sizes. Create one Pinecone index per dimension and note the names below for your own reference.', 'hifqa-fraud-detector' ); ?>
             </p>
             <table class="form-table">
                 <tr>
                     <th scope="row">
-                        <?php esc_html_e( 'OpenAI Index', 'hifqa-fraud-detector' ); ?> <span style="color:#64748b"><?php esc_html_e( '(1536 dimensions)', 'hifqa-fraud-detector' ); ?></span>
+                        <?php esc_html_e( 'OpenAI Index', 'hifqa-fraud-detector' ); ?> <span class="aifd-muted"><?php esc_html_e( '(1536 dimensions)', 'hifqa-fraud-detector' ); ?></span>
                     </th>
                     <td>
                         <input type="text"
@@ -407,7 +567,7 @@ function aifd_render_settings_page() {
                 </tr>
                 <tr>
                     <th scope="row">
-                        <?php esc_html_e( 'Anthropic Index', 'hifqa-fraud-detector' ); ?> <span style="color:#64748b"><?php esc_html_e( '(1024 dimensions — Voyage AI)', 'hifqa-fraud-detector' ); ?></span>
+                        <?php esc_html_e( 'Anthropic Index', 'hifqa-fraud-detector' ); ?> <span class="aifd-muted"><?php esc_html_e( '(1024 dimensions — Voyage AI)', 'hifqa-fraud-detector' ); ?></span>
                     </th>
                     <td>
                         <input type="text"
@@ -418,7 +578,7 @@ function aifd_render_settings_page() {
                 </tr>
                 <tr>
                     <th scope="row">
-                        <?php esc_html_e( 'Gemini / Ollama Index', 'hifqa-fraud-detector' ); ?> <span style="color:#64748b"><?php esc_html_e( '(768 dimensions)', 'hifqa-fraud-detector' ); ?></span>
+                        <?php esc_html_e( 'Gemini / Ollama Index', 'hifqa-fraud-detector' ); ?> <span class="aifd-muted"><?php esc_html_e( '(768 dimensions)', 'hifqa-fraud-detector' ); ?></span>
                     </th>
                     <td>
                         <input type="text"
@@ -432,7 +592,6 @@ function aifd_render_settings_page() {
                 </tr>
             </table>
 
-            <!-- Load Seeds Button -->
             <h2><?php esc_html_e( 'Seed Patterns', 'hifqa-fraud-detector' ); ?></h2>
             <table class="form-table">
                 <tr>
@@ -441,13 +600,13 @@ function aifd_render_settings_page() {
                         <button type="button" id="aifd-load-seeds" class="button button-secondary">
                             <?php esc_html_e( 'Load 65 Seed Patterns into Pinecone', 'hifqa-fraud-detector' ); ?>
                         </button>
-                        <span id="aifd-seed-status" style="margin-left:10px;"></span>
+                        <span id="aifd-seed-status" class="aifd-status"></span>
                         <p class="description">
                             <?php
                             printf(
                                 /* translators: %s: currently selected AI provider name */
-                                esc_html__( 'Loads 50 fraud patterns + 15 legitimate patterns into Pinecone, embedded with your currently selected provider (%s) and stored in your merchant namespace. Only needs to be done once per provider.', 'hifqa-fraud-detector' ),
-                                '<strong>' . esc_html( strtoupper( get_option( 'aifd_ai_provider', 'openai' ) ) ) . '</strong>'
+                                esc_html__( 'Loads 50 fraud patterns + 15 legitimate patterns into Pinecone, embedded with your currently selected provider (%s) and stored in your merchant namespace. Only needs to be done once per provider. Save your settings first.', 'hifqa-fraud-detector' ),
+                                '<strong>' . esc_html( strtoupper( $provider ) ) . '</strong>'
                             );
                             ?>
                         </p>
@@ -492,13 +651,14 @@ function aifd_provider_switch_notice() {
 
     $switch = get_option( 'aifd_provider_switched', array() );
     if ( empty( $switch ) || ! empty( $switch['handled'] ) ) return;
+    if ( empty( $switch['from'] ) || empty( $switch['to'] ) ) return;
 
     $from = strtoupper( $switch['from'] );
     $to   = strtoupper( $switch['to'] );
 
     ?>
-    <div class="notice notice-warning" style="border-left-color:#f59e0b">
-        <h3 style="margin:.5rem 0">⚠️ <?php esc_html_e( 'AI Provider Changed — Action Required', 'hifqa-fraud-detector' ); ?></h3>
+    <div class="notice notice-warning aifd-switch-notice">
+        <h3>⚠️ <?php esc_html_e( 'AI Provider Changed — Action Required', 'hifqa-fraud-detector' ); ?></h3>
         <p>
             <?php
             printf(
@@ -540,7 +700,7 @@ function aifd_provider_switch_notice() {
                 <?php esc_html_e( 'Start fresh with new provider', 'hifqa-fraud-detector' ); ?>
             </button>
             &nbsp;
-            <span id="aifd-migration-status" style="margin-left:10px"></span>
+            <span id="aifd-migration-status" class="aifd-status"></span>
         </p>
         <p class="description">
             <?php

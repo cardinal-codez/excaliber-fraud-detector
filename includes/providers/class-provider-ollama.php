@@ -35,7 +35,13 @@ class AIFD_Provider_Ollama extends AIFD_Provider_Base {
             return $this->fallback( 'Request failed — is Ollama running?' );
         }
 
-        $data    = json_decode( wp_remote_retrieve_body( $response ), true );
+        $code = wp_remote_retrieve_response_code( $response );
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( $code < 200 || $code >= 300 ) {
+            return $this->fallback( 'Ollama error: HTTP ' . $code );
+        }
+
         $content = $data['message']['content'] ?? '';
 
         return $this->parse_response( $content );

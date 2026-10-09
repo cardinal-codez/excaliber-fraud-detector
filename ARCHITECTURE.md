@@ -1,4 +1,4 @@
-# Hifqa — Architecture Document
+# HIFQA Fraud Detector — Architecture Document
 
 > Plugin version: 1.0.0
 > Last updated: July 2026
@@ -7,7 +7,7 @@
 
 ## Overview
 
-Hifqa is a production-grade WordPress plugin that uses AI function calling, Pinecone vector search, and per-merchant learning to detect and prevent ecommerce fraud in real time.
+HIFQA Fraud Detector is a WordPress plugin that uses local signal scoring, with optional AI function calling, Pinecone vector search, and per-merchant learning to detect and prevent ecommerce fraud in real time.
 
 The plugin supports multiple AI providers — OpenAI, Anthropic, Google Gemini, and Ollama (local) — with provider-native embeddings and namespaced Pinecone indexes for full provider independence.
 
@@ -72,9 +72,51 @@ gate instead of requiring AI on every order.
 
 Each tier wraps its external calls in a try/catch. A circuit breaker
 trips after 3 consecutive failures and disables that tier for 10
-minutes, falling back to the next tier down. Checkout is never
-blocked by a third-party outage — `aifd_catch_new_order()` always
-returns a usable score from Tier 0 at minimum.
+minutes, falling back to the next tier down. `aifd_score_order()`
+always has a usable score from Tier 0 at minimum.
+
+Tiers 1 and 2 are **synchronous**: they run inside the checkout request,
+so the customer waits for the provider's reply (up to the HTTP timeout of
+each call, and the function-calling agent can make several calls). An
+outage does not lose the order, but it can slow checkout until the
+breaker opens.
+
+### Trust boundary for the AI tier
+
+The AI reply is untrusted input and goes through
+`aifd_normalize_ai_result()` before it can touch an order:
+
+- the decision must be exactly `ALLOW`, `REVIEW` or `BLOCK` — anything
+  else is a failed call;
+- the score must be numeric and is clamped to 0–100;
+- the decision that is used is re-derived from the score with the
+  store's thresholds (the model may ask for a stricter decision, never a
+  more lenient one);
+- a failed or unusable reply trips the breaker and leaves the local
+  verdict in place — it is never recorded as a pass.
+
+`aifd_apply_local_floor()` then enforces the one hard rule: **a local
+BLOCK is never lowered by the AI.** Only the merchant's Approve / Not
+Fraud action releases a blocked order.
+
+In the function-calling agent, `calculate_final_risk` builds the score
+from what the tools actually observed on the server (the local score,
+the best fraud-pattern similarity returned by Pinecone, the velocity
+check). The model supplies the explanation only; any figures it reports
+are ignored.
+
+Order data enters the prompt through `aifd_prompt_order_facts()`, which
+reduces every field to a fixed shape (number, ISO country code, gateway
+id, email domain) and JSON-encodes it inside a delimited block the
+model is told to treat as data. The full email address, name, IP, phone
+and street address are never sent.
+
+### Block checkout
+
+The block checkout saves the order as a `checkout-draft` before the
+customer has entered their details. Drafts are skipped on
+`woocommerce_new_order` and scored on
+`woocommerce_store_api_checkout_order_processed` instead.
 
 ### How a tier is activated
 
@@ -120,7 +162,7 @@ $result   = aifd_call_provider($signals);
 |----------|--------------|-----------------|------------|-------------|
 | OpenAI | gpt-4o-mini | text-embedding-3-small | 1536 | OpenAI only |
 | Anthropic | claude-haiku-4-5-20251001 | voyage-3 (Voyage AI) | 1024 | Anthropic + Voyage ⚠️ |
-| Google Gemini | gemini-2.5-flash | text-embedding-004 | 768 | Gemini only |
+| Google Gemini | gemini-2.5-flash | gemini-embedding-001 (768d output) | 768 | Gemini only |
 | Ollama | llama3 / any | nomic-embed-text | 768 | None (free, local) |
 
 ### Provider File Structure
@@ -182,7 +224,7 @@ All 65 seed patterns must be embedded with the same model they will be searched 
 ```
 WRONG ❌
 Seeds embedded with OpenAI text-embedding-3-small
-Search query embedded with Gemini text-embedding-004
+Search query embedded with Gemini gemini-embedding-001
 → Different vector spaces
 → Similarity scores are meaningless
 → System returns garbage results
@@ -208,7 +250,7 @@ private $models = array(
         'dimension' => 1024,
     ),
     'gemini'    => array(
-        'model'     => 'text-embedding-004',
+        'model'     => 'gemini-embedding-001',
         'dimension' => 768,
     ),
     'ollama'    => array(
@@ -226,7 +268,7 @@ Anthropic merchants need two API keys:
 - Anthropic API key (for Claude scoring)
 - Voyage AI API key (for embeddings)
 
-Fallback: If no Voyage key provided, falls back to OpenAI embeddings with a warning.
+There is no fallback. Without a Voyage key, `AIFD_Embeddings::embed()` returns false with an explanation that is shown on the settings page, in the seed loader and in the confirm-fraud response — the pattern text is never sent to a different provider.
 
 ---
 
@@ -284,6 +326,9 @@ Seeds available for similarity search immediately
 ### What We Store in Pinecone
 
 We never store raw order data. We store behavior pattern embeddings.
+A merchant-confirmed pattern carries the same fields as a seed with a
+fixed description — no order number, risk score or AI-written text — and
+its vector id is `confirmed_<keyed hash>_<provider>`, not the order id.
 
 ```json
 {
@@ -395,8 +440,8 @@ tools: [
   },
   {
     name: "check_velocity",
-    description: "Check order velocity for email and IP",
-    parameters: { email: string, ip: string, window_minutes: number }
+    description: "Check order velocity for this order's email and IP (looked up on the server — neither is sent to the model)",
+    parameters: { window_minutes: number }
   },
   {
     name: "calculate_final_risk",
@@ -547,7 +592,7 @@ Anthropic Settings
 
 Google Gemini Settings
 ├── API Key (used for scoring + embeddings)
-└── Model: gemini-2.5-flash | gemini-2.5-pro | gemini-2.0-flash
+└── Model: gemini-2.5-flash | gemini-2.5-pro
 
 Ollama Settings
 ├── Host URL (default: http://localhost:11434)
@@ -580,7 +625,7 @@ Risk Thresholds
 | AI scoring (local) | Ollama (any model, free, private) |
 | Embeddings (OpenAI) | text-embedding-3-small (1536d) |
 | Embeddings (Anthropic) | voyage-3 via Voyage AI (1024d) |
-| Embeddings (Gemini) | text-embedding-004 (768d) |
+| Embeddings (Gemini) | gemini-embedding-001 (768d output) |
 | Embeddings (Ollama) | nomic-embed-text (768d) |
 | Vector store | Pinecone serverless (namespaced) |
 | Future: Shopify API | Python + FastAPI + Azure |
@@ -639,16 +684,21 @@ plain options in `wp_options`:
 
 ```php
 register_setting( 'aifd_settings', 'aifd_openai_key', array(
-    'sanitize_callback' => 'sanitize_text_field',
-    'default'           => ''
+    'type'              => 'string',
+    'sanitize_callback' => function ( $value ) {
+        return aifd_sanitize_api_key( $value, 'aifd_openai_key' );
+    },
+    'default'           => '',
 ) );
 ```
 
 Saving goes through core's `options.php` handler, which enforces the
 `manage_options` capability and verifies the settings-group nonce
-before any value is written. Each key is run through
-`sanitize_text_field()` on the way in (`esc_url_raw()` for host URLs,
-`absint()` for thresholds).
+before any value is written. Every setting has its own sanitizer: keys
+are text-sanitized and kept when the field is left blank, the provider
+and model are checked against a whitelist, thresholds are clamped to
+0–100, the Pinecone host must be an `https://` URL and the Ollama host
+`http://` or `https://`.
 
 **The keys are not encrypted at rest.** They are stored as plaintext
 option rows, which is the standard WordPress pattern — an encryption
@@ -656,11 +706,14 @@ key would itself have to live on the same filesystem, so it would add
 obfuscation rather than a real security boundary. The practical
 consequences:
 
-- Anyone with database read access, or with `manage_options` on the
-  site, can recover the keys.
-- The settings page renders the current key into the field's `value`
-  attribute (as `type="password"`, so it is masked visually but present
-  in the page HTML).
+- Anyone with database read access can recover the keys, and so can
+  an administrator who is able to run code on the site.
+- The settings page never prints a saved key. The field is rendered
+  empty; a blank submission keeps the stored key, a new value replaces
+  it, and "Remove the saved key" deletes it.
+- The Gemini key is sent in the `x-goog-api-key` header, never in the
+  URL. Error text that is logged or stored passes through
+  `aifd_redact_secrets()`.
 - Keys are therefore only as protected as the WordPress admin account
   and the database behind it.
 
@@ -684,9 +737,12 @@ at all.
 Tier 0 sends nothing off-site. Tiers 1 and 2 transmit the derived
 pattern text and signal summary to the merchant's chosen provider only
 once that provider's API key has been entered — an empty key field
-means no external request is made. Because the transmitted pattern text
-is a list of signal names (e.g. `disposable_email address_mismatch
-no_phone_number`) plus country codes, it contains no personal data.
+means no external request is made. The pattern text is a list of signal
+names (e.g. `disposable_email address_mismatch no_phone_number`) plus the
+gateway id and country codes. The AI tier additionally receives the
+order total, the billing email's **domain**, the previous-order count and
+the store average. `readme.txt` lists every field per service and is
+kept in step with `aifd_prompt_order_facts()`.
 
 This is a design property, not a legal opinion: whether a given
 deployment is GDPR-compliant depends on the merchant's own processing
@@ -700,9 +756,9 @@ exists for deployments with strict data-sovereignty requirements.
 The decisions below are the ones that most shape how the plugin behaves,
 and the reasoning behind each:
 
-- **Local-first tiers.** Fraud scoring must never be the reason a
-  checkout fails. Tier 0 is pure PHP and always available, so a provider
-  outage degrades accuracy rather than breaking the store.
+- **Local-first tiers.** Tier 0 is pure PHP and always available, so a
+  provider outage degrades accuracy (and, until the breaker opens, adds
+  latency) rather than losing the order.
 - **Provider-native embeddings.** Mixing embedding models within one
   vector space makes similarity scores meaningless, so each provider
   embeds and searches with its own model.
@@ -716,7 +772,7 @@ and the reasoning behind each:
   merchants more than the fraud they prevent, so the mid-range decision
   holds an order for a human rather than blocking it outright.
 - **Ollama support.** Gives merchants with data-sovereignty constraints
-  a path that sends nothing to a third party.
+  a path that sends data only to a host they run themselves.
 
 ---
 

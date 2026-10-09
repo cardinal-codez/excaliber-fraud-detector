@@ -26,6 +26,14 @@ tests_add_filter( 'setup_theme', function () {
 	WC_Install::install();
 	$GLOBALS['wp_roles'] = null;
 	wp_roles();
+
+	// AIFD_TEST_HPOS=1 runs the whole suite on High-Performance Order Storage
+	// instead of the legacy posts tables.
+	if ( getenv( 'AIFD_TEST_HPOS' ) ) {
+		wc_get_container()->get( \Automattic\WooCommerce\Internal\DataStores\Orders\DataSynchronizer::class )->create_database_tables();
+		update_option( 'woocommerce_custom_orders_table_data_sync_enabled', 'no' );
+		update_option( 'woocommerce_custom_orders_table_enabled', 'yes' );
+	}
 } );
 
 // Keep test runs from writing log files; tests that need logs add a handler.

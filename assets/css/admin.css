@@ -1,0 +1,97 @@
+/* HIFQA Fraud Detector — settings page and admin notices. */
+
+.aifd-callout {
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	padding: 14px 18px;
+	margin: 0 0 20px;
+	background: #f8fafc;
+}
+
+.aifd-callout p {
+	margin: 6px 0 0;
+	font-size: 13px;
+}
+
+.aifd-callout ul {
+	margin: 4px 0 0;
+	padding-left: 20px;
+	list-style: disc;
+}
+
+.aifd-callout--success {
+	background: #f0fdf4;
+	border-color: #bbf7d0;
+}
+
+.aifd-callout--success p {
+	color: #166534;
+}
+
+.aifd-callout--info {
+	background: #eff6ff;
+	border-color: #bfdbfe;
+}
+
+.aifd-callout--info p {
+	color: #1d4ed8;
+}
+
+.aifd-callout--warning {
+	background: #fff3cd;
+	border-color: #f59e0b;
+}
+
+.aifd-disclosure-table {
+	width: 100%;
+	margin-top: 10px;
+	font-size: 13px;
+	border-collapse: collapse;
+}
+
+.aifd-disclosure-table th,
+.aifd-disclosure-table td {
+	text-align: left;
+	vertical-align: top;
+	padding: 6px 12px 6px 0;
+	border-bottom: 1px solid #e2e8f0;
+}
+
+.aifd-disclosure-table tr:last-child td {
+	border-bottom: 0;
+}
+
+.aifd-callout .aifd-links {
+	margin-top: 10px;
+	font-size: 12px;
+	color: #64748b;
+}
+
+.aifd-settings h3 {
+	margin-top: 1.5rem;
+}
+
+.aifd-clear-key {
+	display: block;
+	margin-top: 6px;
+}
+
+.aifd-status {
+	margin-left: 10px;
+}
+
+.aifd-muted {
+	color: #64748b;
+}
+
+.aifd-warn {
+	color: #856404;
+}
+
+.aifd-switch-notice {
+	border-left-color: #f59e0b;
+}
+
+.aifd-switch-notice h3 {
+	margin: 0.5rem 0;
+}

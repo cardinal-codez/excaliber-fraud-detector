@@ -7,10 +7,64 @@ class AIFD_Pinecone {
     private $host;
     private $embeddings;
 
+    /**
+     * Why the last call failed: array( 'code' => ..., 'message' => ... ), or null.
+     */
+    private $last_error = null;
+
     public function __construct() {
         $this->api_key = get_option( 'aifd_pinecone_key', '' );
         $this->host    = rtrim( get_option( 'aifd_pinecone_host', '' ), '/' );
         $this->embeddings = new AIFD_Embeddings();
+    }
+
+    /**
+     * Why the last upsert, query or search failed, or null if it did not.
+     */
+    public function get_last_error() {
+        return $this->last_error;
+    }
+
+    /**
+     * POST to the index and return the decoded reply, or false on any failure.
+     */
+    private function post( $path, $body ) {
+
+        $this->last_error = null;
+
+        $response = wp_remote_post( $this->host . $path, array(
+            'timeout' => 30,
+            'headers' => array(
+                'Api-Key'      => $this->api_key,
+                'Content-Type' => 'application/json',
+            ),
+            'body' => wp_json_encode( $body ),
+        ));
+
+        if ( is_wp_error( $response ) ) {
+            $this->last_error = array(
+                'code'    => 'request_failed',
+                'message' => __( 'Could not reach Pinecone. Check the index host URL.', 'hifqa-fraud-detector' ),
+            );
+            return false;
+        }
+
+        // A wrong key or host answers 4xx — don't report that as success.
+        $code = (int) wp_remote_retrieve_response_code( $response );
+
+        if ( $code < 200 || $code >= 300 ) {
+            $this->last_error = array(
+                'code'    => 'http_error',
+                /* translators: %d: HTTP status code */
+                'message' => sprintf( __( 'Pinecone rejected the request (HTTP %d). Check the API key and index host.', 'hifqa-fraud-detector' ), $code ),
+            );
+            return false;
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        return is_array( $data ) ? $data : array();
+
     }
 
     /**
@@ -44,23 +98,7 @@ class AIFD_Pinecone {
             $body['namespace'] = $namespace;
         }
 
-        $response = wp_remote_post( $this->host . '/vectors/upsert', array(
-            'timeout' => 30,
-            'headers' => array(
-                'Api-Key'      => $this->api_key,
-                'Content-Type' => 'application/json',
-            ),
-            'body' => wp_json_encode( $body ),
-        ));
-
-        if ( is_wp_error( $response ) ) {
-            return false;
-        }
-
-        // A wrong key or host answers 4xx — don't report that as saved.
-        $code = wp_remote_retrieve_response_code( $response );
-
-        return $code >= 200 && $code < 300;
+        return false !== $this->post( '/vectors/upsert', $body );
 
     }
 
@@ -68,7 +106,7 @@ class AIFD_Pinecone {
      * Query Pinecone for similar patterns
      * Query vector — now supports namespace and filtering by metadata.
      */
-   public function query( $vector, $top_k = 5, $namespace = '' ) {
+    public function query( $vector, $top_k = 5, $namespace = '' ) {
 
         if ( ! $this->is_configured() ) return array();
 
@@ -82,24 +120,13 @@ class AIFD_Pinecone {
             $body['namespace'] = $namespace;
         }
 
-        $response = wp_remote_post( $this->host . '/query', array(
-            'timeout' => 30,
-            'headers' => array(
-                'Api-Key'      => $this->api_key,
-                'Content-Type' => 'application/json',
-            ),
-            'body' => wp_json_encode( $body ),
-        ));
+        $data = $this->post( '/query', $body );
 
-        if ( is_wp_error( $response ) ) {
+        if ( false === $data || ! is_array( $data['matches'] ?? null ) ) {
             return array();
         }
 
-        $status = wp_remote_retrieve_response_code( $response );
-        $body_raw = wp_remote_retrieve_body( $response );
-
-        $data = json_decode( $body_raw, true );
-        return $data['matches'] ?? array();
+        return $data['matches'];
 
     }
 
@@ -118,18 +145,20 @@ class AIFD_Pinecone {
             return array();
         }
 
+        $this->last_error = null;
+
         $provider  = get_option( 'aifd_ai_provider', 'openai' );
         $embedding = $this->embeddings->embed( $pattern_text, $provider );
 
         if ( ! $embedding ) {
+            // No embedding, no search — and no other provider is tried in its place.
+            $this->last_error = $this->embeddings->get_last_error();
             return array();
         }
 
         $namespace = $this->embeddings->get_namespace( $provider );
 
-        $matches = $this->query( $embedding, $top_k, $namespace );
-
-        return $matches;
+        return $this->query( $embedding, $top_k, $namespace );
 
     }
 
@@ -157,12 +186,17 @@ class AIFD_Pinecone {
             }
         }
 
-        if ( ! empty( $signals['payment_method'] ) ) {
-            $active[] = $signals['payment_method'] . '_payment';
+        // Gateway id and country codes only — reduced to a fixed shape before they leave the site.
+        $payment  = sanitize_key( (string) ( $signals['payment_method'] ?? '' ) );
+        $billing  = strtoupper( sanitize_key( (string) ( $signals['billing_country'] ?? '' ) ) );
+        $shipping = strtoupper( sanitize_key( (string) ( $signals['shipping_country'] ?? '' ) ) );
+
+        if ( '' !== $payment ) {
+            $active[] = $payment . '_payment';
         }
 
-        if ( ! empty( $signals['billing_country'] ) && ! empty( $signals['shipping_country'] ) ) {
-            $active[] = $signals['billing_country'] . '_to_' . $signals['shipping_country'];
+        if ( '' !== $billing && '' !== $shipping ) {
+            $active[] = $billing . '_to_' . $shipping;
         }
 
         return implode( ' ', $active );
@@ -184,23 +218,17 @@ class AIFD_Pinecone {
             $body['namespace'] = $namespace;
         }
 
-        wp_remote_post( $this->host . '/vectors/delete', array(
-            'timeout' => 30,
-            'headers' => array(
-                'Api-Key'      => $this->api_key,
-                'Content-Type' => 'application/json',
-            ),
-            'body' => wp_json_encode($body),
-        ));
-
-        return true;
+        return false !== $this->post( '/vectors/delete', $body );
 
     }
 
     /**
      * Migrate patterns from one provider namespace to another
+     *
+     * @param bool $load_seeds Load the seed patterns first. Pass false when the
+     *                         caller has already loaded them in batches.
      */
-    public function aifd_migrate_namespace( $from_provider, $to_provider ) {
+    public function aifd_migrate_namespace( $from_provider, $to_provider, $load_seeds = true ) {
 
         $pinecone   = new AIFD_Pinecone();
         $embeddings = new AIFD_Embeddings();
@@ -209,41 +237,71 @@ class AIFD_Pinecone {
             return array( 'success' => false, 'message' => __( 'Pinecone not configured', 'hifqa-fraud-detector' ) );
         }
 
-        $merchant_id    = get_current_blog_id();
-        $from_namespace = 'merchant_' . $merchant_id . '_' . $from_provider;
-        $to_namespace   = 'merchant_' . $merchant_id . '_' . $to_provider;
+        $allowed = aifd_get_allowed_providers();
 
-        // First reload all 65 seed patterns into new namespace
-        $loader = new AIFD_Seed_Loader();
-        $result = $loader->load_seeds_to_namespace( $to_namespace, $to_provider );
+        if ( ! in_array( $from_provider, $allowed, true ) || ! in_array( $to_provider, $allowed, true ) ) {
+            return array( 'success' => false, 'message' => __( 'Unknown AI provider', 'hifqa-fraud-detector' ) );
+        }
+
+        $problem = $embeddings->get_setup_problem( $to_provider );
+
+        if ( '' !== $problem ) {
+            return array( 'success' => false, 'message' => $problem );
+        }
+
+        $to_namespace = $embeddings->get_namespace( $to_provider );
+
+        // First reload the seed patterns into the new namespace
+        if ( $load_seeds ) {
+            $loader = new AIFD_Seed_Loader();
+            $loader->load_seeds_to_namespace( $to_namespace, $to_provider );
+        }
 
         // Then migrate confirmed merchant patterns
         $confirmed = get_option( 'aifd_confirmed_patterns', array() );
         $migrated  = 0;
+        $failed    = 0;
 
-        foreach ( $confirmed as $pattern ) {
+        foreach ( (array) $confirmed as $pattern ) {
+
+            if ( empty( $pattern['pattern_text'] ) || empty( $pattern['order_id'] ) ) continue;
 
             $embedding = $embeddings->embed( $pattern['pattern_text'], $to_provider );
 
-            if ( ! $embedding ) continue;
+            if ( ! $embedding ) {
+                $failed++;
+                continue;
+            }
 
-            $pinecone->upsert(
-                'confirmed_' . $pattern['order_id'] . '_' . $to_provider,
+            $saved = $pinecone->upsert(
+                aifd_pattern_vector_id( $pattern['order_id'], $to_provider ),
                 $embedding,
                 array(
-                    'pattern'    => $pattern['pattern_text'],
-                    'fraud_type' => 'confirmed_fraud',
-                    'confidence' => 1.0,
-                    'source'     => 'merchant_confirmed',
-                    'provider'   => $to_provider,
-                    'order_id'   => $pattern['order_id'],
+                    'pattern'     => $pattern['pattern_text'],
+                    'fraud_type'  => 'confirmed_fraud',
+                    'confidence'  => 1.0,
+                    'times_seen'  => 1,
+                    'source'      => 'merchant_confirmed',
+                    'provider'    => $to_provider,
+                    'description' => 'Merchant-confirmed fraud pattern',
                 ),
                 $to_namespace
             );
 
-            $migrated++;
-            usleep( 200000 );
+            if ( $saved ) {
+                $migrated++;
+            } else {
+                $failed++;
+            }
 
+        }
+
+        if ( $failed > 0 && 0 === $migrated ) {
+            $error = $pinecone->get_last_error();
+            return array(
+                'success' => false,
+                'message' => $embeddings->get_last_error_message() ?: ( $error ? $error['message'] : __( 'Migration failed.', 'hifqa-fraud-detector' ) ),
+            );
         }
 
         return array(
@@ -251,9 +309,9 @@ class AIFD_Pinecone {
             /* translators: 1: number of migrated patterns, 2: new provider name */
             'message'  => sprintf( __( 'Migration complete. Seeds loaded + %1$d confirmed patterns migrated to %2$s namespace.', 'hifqa-fraud-detector' ), $migrated, $to_provider ),
             'migrated' => $migrated,
+            'failed'   => $failed,
         );
 
     }
-
 
 }

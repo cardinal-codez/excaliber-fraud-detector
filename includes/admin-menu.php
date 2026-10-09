@@ -9,9 +9,10 @@ add_action('admin_menu', 'aifd_register_menu');
 function aifd_register_menu() {
     // Hook suffix is derived from the menu title, so capture it rather than
     // hardcoding it — a rename would otherwise silently stop the enqueues.
+    // The sidebar label is the short brand; the page title carries the full name.
     $GLOBALS['aifd_dashboard_hook'] = add_menu_page(
-        __( 'Hifqa – AI Fraud Detector', 'hifqa-fraud-detector' ),
-        __( 'Hifqa', 'hifqa-fraud-detector' ),
+        __( 'HIFQA Fraud Detector', 'hifqa-fraud-detector' ),
+        __( 'HIFQA', 'hifqa-fraud-detector' ),
         'manage_options',
         'hifqa-fraud-detector',
         'aifd_render_dashboard',
@@ -41,6 +42,8 @@ function aifd_enqueue_react( $hook ) {
         true
     );
 
+    wp_set_script_translations( 'aifd-dashboard', 'hifqa-fraud-detector' );
+
     // Pass data from PHP to React
     wp_localize_script( 'aifd-dashboard', 'aifdData', array(
         'apiUrl'   => rest_url( 'aifd/v1/' ),
@@ -49,5 +52,6 @@ function aifd_enqueue_react( $hook ) {
         'review'   => get_option( 'aifd_total_review', 0 ),
         'allowed'  => get_option( 'aifd_total_allowed', 0 ),
         'saved'    => get_option( 'aifd_total_saved', 0 ),
+        'currency' => html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ),
     ));
 }

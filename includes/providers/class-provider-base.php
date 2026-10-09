@@ -16,11 +16,15 @@ abstract class AIFD_Provider_Base {
      */
     protected function parse_response( $content ) {
 
-        $content = trim( $content );
-        $content = preg_replace( '/```json|```/', '', $content );
-        $result  = json_decode( $content, true );
+        if ( ! is_string( $content ) ) {
+            return $this->fallback( 'Response parsing failed' );
+        }
 
-        if ( ! $result || ! isset( $result['risk_score'] ) ) {
+        $content = preg_replace( '/```json|```/', '', trim( $content ) );
+        $result  = json_decode( trim( $content ), true );
+
+        // Shape only — the verdict itself is validated by aifd_normalize_ai_result().
+        if ( ! is_array( $result ) || ! isset( $result['risk_score'] ) ) {
             return $this->fallback( 'Response parsing failed' );
         }
 
@@ -36,7 +40,7 @@ abstract class AIFD_Provider_Base {
             'risk_score' => 50,
             'risk_level' => 'MEDIUM',
             'decision'   => 'REVIEW',
-            'reason'     => $reason . ' (' . $this->name . ') — manual review needed',
+            'reason'     => aifd_redact_secrets( $reason ) . ' (' . $this->name . ') — manual review needed',
             'source'     => 'fallback',
         );
     }

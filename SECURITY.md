@@ -39,9 +39,8 @@ Out of scope:
   service the plugin talks to (OpenAI, Anthropic, Google, Voyage AI,
   Pinecone, Ollama) — report those to the relevant project
 - Findings that require a `manage_options` administrator account to
-  exploit. That capability already implies full control of the site, and
-  the plugin's settings, including API keys, are deliberately readable by
-  it (see the Security Considerations section of `ARCHITECTURE.md`)
+  exploit. That capability already implies full control of the site
+  (see the Security Considerations section of `ARCHITECTURE.md`)
 - Reports that API keys are stored unencrypted in `wp_options`. This is a
   known and documented design decision, not an oversight — an encryption
   key stored on the same filesystem would be obfuscation rather than a
@@ -55,9 +54,10 @@ vulnerabilities:
 - **API keys are stored in plaintext** in the `wp_options` table and are
   recoverable by anyone with database read access or a site administrator
   account.
-- **The settings page renders the saved key** into the input's `value`
-  attribute. It is masked as a password field, but it is present in the
-  page HTML delivered to an already-authenticated administrator.
+- **The AI tier is advisory, not authoritative.** Its reply is validated
+  and can never lower a local BLOCK, but it can lower a local REVIEW to
+  ALLOW. Merchants who do not want a model to have that say should leave
+  the AI tier off.
 
 Merchants who need stronger guarantees should scope their provider keys
 to the minimum permissions available, rotate them periodically, or use

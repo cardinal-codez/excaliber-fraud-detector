@@ -173,8 +173,17 @@ class RestApiTest extends TestCase {
 		wp_set_current_user( $this->admin_id );
 		$order = $this->make_blocked_order();
 
-		$this->request( 'POST', '/order/' . $order->get_id() . '/action', array( 'action_type' => 'explode' ) );
+		$response = $this->request( 'POST', '/order/' . $order->get_id() . '/action', array( 'action_type' => 'explode' ) );
 
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'on-hold', wc_get_order( $order->get_id() )->get_status() );
+	}
+
+	public function test_action_without_an_action_type_is_rejected() {
+		wp_set_current_user( $this->admin_id );
+		$order = $this->make_blocked_order();
+
+		$this->assertSame( 400, $this->request( 'POST', '/order/' . $order->get_id() . '/action' )->get_status() );
 		$this->assertSame( 'on-hold', wc_get_order( $order->get_id() )->get_status() );
 	}
 
@@ -245,6 +254,61 @@ class RestApiTest extends TestCase {
 		$this->assertCount( 1, $upserts );
 		$body = json_decode( $upserts[0]['args']['body'], true );
 		$this->assertSame( 'merchant_1_openai', $body['namespace'] );
-		$this->assertSame( 'confirmed_' . $order->get_id() . '_openai', $body['vectors'][0]['id'] );
+		$this->assertSame( aifd_pattern_vector_id( $order->get_id(), 'openai' ), $body['vectors'][0]['id'] );
+	}
+
+	public function test_confirmed_pattern_sent_to_pinecone_carries_no_order_or_customer_detail() {
+		wp_set_current_user( $this->admin_id );
+		update_option( 'aifd_openai_key', 'sk-test' );
+		update_option( 'aifd_pinecone_key', 'pk' );
+		update_option( 'aifd_pinecone_host', 'https://idx.pinecone.io' );
+		$order = $this->make_blocked_order();
+		$order->update_meta_data( '_aifd_reason', 'AI said buyer@mailinator.com looks fraudulent' );
+		$order->save();
+
+		$this->http_requests = array();
+		$this->respond_with( function ( $url ) {
+			if ( false !== strpos( $url, 'api.openai.com/v1/embeddings' ) ) {
+				return self::json_response( array( 'data' => array( array( 'embedding' => array( 0.1, 0.2 ) ) ) ) );
+			}
+			return self::json_response( array( 'matches' => array(), 'upsertedCount' => 1 ) );
+		} );
+
+		$this->request( 'POST', '/order/' . $order->get_id() . '/confirm-fraud' );
+
+		$sent = '';
+		foreach ( $this->http_requests as $request ) {
+			$sent .= $request['args']['body'];
+		}
+		$upsert   = array_values( array_filter( $this->http_requests, function ( $r ) {
+			return false !== strpos( $r['url'], '/vectors/upsert' );
+		} ) )[0];
+		$vector   = json_decode( $upsert['args']['body'], true )['vectors'][0];
+		$metadata = $vector['metadata'];
+
+		$this->assertSame(
+			array( 'pattern', 'fraud_type', 'confidence', 'times_seen', 'source', 'provider', 'description' ),
+			array_keys( $metadata )
+		);
+		$this->assertSame( 'Merchant-confirmed fraud pattern', $metadata['description'] );
+		$this->assertMatchesRegularExpression( '/^confirmed_[a-f0-9]{32}_openai$/', $vector['id'], 'The id is a keyed hash' );
+		$this->assertNotSame( 'confirmed_' . $order->get_id() . '_openai', $vector['id'], 'The order number is not the id' );
+		$this->assertStringNotContainsString( 'mailinator', $sent, 'Neither the email nor the stored reason may leave the site' );
+		$this->assertStringNotContainsString( 'John', $sent );
+	}
+
+	public function test_confirm_fraud_reports_why_pinecone_did_not_save() {
+		wp_set_current_user( $this->admin_id );
+		update_option( 'aifd_ai_provider', 'anthropic' );
+		update_option( 'aifd_pinecone_key', 'pk' );
+		update_option( 'aifd_pinecone_host', 'https://idx.pinecone.io' );
+		$order = $this->make_blocked_order();
+
+		$this->http_requests = array();
+		$data = $this->request( 'POST', '/order/' . $order->get_id() . '/confirm-fraud' )->get_data();
+
+		$this->assertFalse( $data['pinecone_saved'] );
+		$this->assertStringContainsString( 'Voyage AI', $data['message'] );
+		$this->assertSame( array(), $this->http_requests, 'No other provider is called in its place' );
 	}
 }

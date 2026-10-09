@@ -1,6 +1,6 @@
 {
     "name": "dilrubaummer/hifqa-fraud-detector",
-    "description": "Hifqa – AI Fraud Detector",
+    "description": "HIFQA Fraud Detector",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "require-dev": {

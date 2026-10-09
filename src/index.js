@@ -1,12 +1,13 @@
 import { render, useState, useEffect } from '@wordpress/element';
 import { Spinner } from '@wordpress/components';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 
 // ── API Helper ─────────────────────────────────
 const api = {
     get: ( endpoint ) => fetch( `${aifdData.apiUrl}${endpoint}`, {
         headers: { 'X-WP-Nonce': aifdData.nonce }
-    }).then( r => r.json() ),
+    }).then( api.read ),
 
     post: ( endpoint, body = {} ) => fetch( `${aifdData.apiUrl}${endpoint}`, {
         method: 'POST',
@@ -15,7 +16,16 @@ const api = {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify( body )
-    }).then( r => r.json() )
+    }).then( api.read ),
+
+    // A REST error is JSON too — reject so a failed request is never shown as done.
+    read: async ( r ) => {
+        const data = await r.json();
+        if ( ! r.ok ) {
+            throw new Error( data?.message || __( 'Request failed', 'hifqa-fraud-detector' ) );
+        }
+        return data;
+    }
 };
 
 // ── Score Bar ──────────────────────────────────
@@ -40,11 +50,11 @@ const ScoreBar = ({ score }) => {
 // ── Decision Badge ─────────────────────────────
 const Badge = ({ decision }) => {
     const map = {
-        BLOCK:          { bg: '#fef2f2', color: '#ef4444', border: '#fecaca', label: '🚫 Block' },
-        REVIEW:         { bg: '#fffbeb', color: '#f59e0b', border: '#fde68a', label: '⚠️ Review' },
-        ALLOW:          { bg: '#f0fdf4', color: '#10b981', border: '#bbf7d0', label: '✅ Allow' },
-        APPROVED:       { bg: '#f0fdf4', color: '#10b981', border: '#bbf7d0', label: '✅ Approved' },
-        BLOCKED:        { bg: '#fef2f2', color: '#ef4444', border: '#fecaca', label: '🚫 Blocked' },
+        BLOCK:          { bg: '#fef2f2', color: '#ef4444', border: '#fecaca', label: '🚫 ' + __( 'Block', 'hifqa-fraud-detector' ) },
+        REVIEW:         { bg: '#fffbeb', color: '#f59e0b', border: '#fde68a', label: '⚠️ ' + __( 'Review', 'hifqa-fraud-detector' ) },
+        ALLOW:          { bg: '#f0fdf4', color: '#10b981', border: '#bbf7d0', label: '✅ ' + __( 'Allow', 'hifqa-fraud-detector' ) },
+        APPROVED:       { bg: '#f0fdf4', color: '#10b981', border: '#bbf7d0', label: '✅ ' + __( 'Approved', 'hifqa-fraud-detector' ) },
+        BLOCKED:        { bg: '#fef2f2', color: '#ef4444', border: '#fecaca', label: '🚫 ' + __( 'Blocked', 'hifqa-fraud-detector' ) },
     };
     const s = map[decision] || map.REVIEW;
     return (
@@ -62,9 +72,9 @@ const Badge = ({ decision }) => {
 // ── Review Status Badge ────────────────────────
 const ReviewBadge = ({ status }) => {
     const map = {
-        PENDING:          { bg: '#eff6ff', color: '#3b82f6', label: '⏳ Pending Review' },
-        CONFIRMED_FRAUD:  { bg: '#fef2f2', color: '#ef4444', label: '🚨 Confirmed Fraud' },
-        FALSE_POSITIVE:   { bg: '#f0fdf4', color: '#10b981', label: '✅ False Positive' },
+        PENDING:          { bg: '#eff6ff', color: '#3b82f6', label: '⏳ ' + __( 'Pending Review', 'hifqa-fraud-detector' ) },
+        CONFIRMED_FRAUD:  { bg: '#fef2f2', color: '#ef4444', label: '🚨 ' + __( 'Confirmed Fraud', 'hifqa-fraud-detector' ) },
+        FALSE_POSITIVE:   { bg: '#f0fdf4', color: '#10b981', label: '✅ ' + __( 'False Positive', 'hifqa-fraud-detector' ) },
     };
     const s = map[status] || map.PENDING;
     return (
@@ -115,21 +125,31 @@ const FeedbackButtons = ({ order, onAction }) => {
     }
 
     const handleConfirm = async () => {
-        if ( ! confirm( `Confirm Order #${order.id} as fraud? This will save the pattern to your fraud database.` ) ) return;
+        /* translators: %d: order number */
+        if ( ! confirm( sprintf( __( 'Confirm Order #%d as fraud? If vector memory is on, the pattern is saved to your fraud database.', 'hifqa-fraud-detector' ), order.id ) ) ) return;
         setActing( true );
-        await api.post( `order/${order.id}/confirm-fraud` );
-        setDone( 'CONFIRMED_FRAUD' );
+        try {
+            await api.post( `order/${order.id}/confirm-fraud` );
+            setDone( 'CONFIRMED_FRAUD' );
+            onAction();
+        } catch ( e ) {
+            window.alert( e.message );
+        }
         setActing( false );
-        onAction();
     };
 
     const handleOverride = async () => {
-        if ( ! confirm( `Mark Order #${order.id} as legitimate? This will release the order and adjust your fraud signal weights.` ) ) return;
+        /* translators: %d: order number */
+        if ( ! confirm( sprintf( __( 'Mark Order #%d as legitimate? This will release the order and adjust your fraud signal weights.', 'hifqa-fraud-detector' ), order.id ) ) ) return;
         setActing( true );
-        await api.post( `order/${order.id}/override` );
-        setDone( 'FALSE_POSITIVE' );
+        try {
+            await api.post( `order/${order.id}/override` );
+            setDone( 'FALSE_POSITIVE' );
+            onAction();
+        } catch ( e ) {
+            window.alert( e.message );
+        }
         setActing( false );
-        onAction();
     };
 
     if ( acting ) return <Spinner />;
@@ -142,7 +162,7 @@ const FeedbackButtons = ({ order, onAction }) => {
                 border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444',
                 whiteSpace: 'nowrap'
             }}>
-                🚨 Confirm Fraud
+                🚨 { __( 'Confirm Fraud', 'hifqa-fraud-detector' ) }
             </button>
             <button onClick={handleOverride} style={{
                 padding: '4px 10px', borderRadius: '6px',
@@ -150,7 +170,7 @@ const FeedbackButtons = ({ order, onAction }) => {
                 border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#10b981',
                 whiteSpace: 'nowrap'
             }}>
-                ✅ Not Fraud
+                ✅ { __( 'Not Fraud', 'hifqa-fraud-detector' ) }
             </button>
         </div>
     );
@@ -159,26 +179,30 @@ const FeedbackButtons = ({ order, onAction }) => {
 const WeightsPanel = ({ weights, onReset, resetting }) => {
 
     const tierColors = { 1: '#ef4444', 2: '#f59e0b', 3: '#6366f1' };
-    const tierLabels = { 1: 'Tier 1 — Critical', 2: 'Tier 2 — Strong', 3: 'Tier 3 — Contextual' };
+    const tierLabels = {
+        1: __( 'Tier 1 — Critical', 'hifqa-fraud-detector' ),
+        2: __( 'Tier 2 — Strong', 'hifqa-fraud-detector' ),
+        3: __( 'Tier 3 — Contextual', 'hifqa-fraud-detector' ),
+    };
 
     const signalLabels = {
-        card_testing_pattern:   'Card Testing Pattern',
-        disposable_email:       'Disposable Email',
-        high_velocity:          'High Velocity',
-        address_mismatch:       'Address Mismatch',
-        freight_forwarder:      'Freight Forwarder',
-        chargeback_history:     'Chargeback History',
-        first_order_high_value: 'First Order High Value',
-        ip_proxy_vpn:           'IP Proxy / VPN',
-        risky_country_combo:    'Risky Country Combo',
-        mismatched_names:       'Mismatched Names',
-        no_phone_number:        'No Phone Number',
-        payment_method_risk:    'Payment Method Risk',
-        multiple_addresses:     'Multiple Addresses',
-        order_total_anomaly:    'Order Total Anomaly',
-        odd_hours:              'Odd Hours',
-        guest_checkout:         'Guest Checkout',
-        new_account:            'New Account',
+        card_testing_pattern:   __( 'Card Testing Pattern', 'hifqa-fraud-detector' ),
+        disposable_email:       __( 'Disposable Email', 'hifqa-fraud-detector' ),
+        high_velocity:          __( 'High Velocity', 'hifqa-fraud-detector' ),
+        address_mismatch:       __( 'Address Mismatch', 'hifqa-fraud-detector' ),
+        freight_forwarder:      __( 'Freight Forwarder', 'hifqa-fraud-detector' ),
+        chargeback_history:     __( 'Chargeback History', 'hifqa-fraud-detector' ),
+        first_order_high_value: __( 'First Order High Value', 'hifqa-fraud-detector' ),
+        ip_proxy_vpn:           __( 'IP Proxy / VPN', 'hifqa-fraud-detector' ),
+        risky_country_combo:    __( 'Risky Country Combo', 'hifqa-fraud-detector' ),
+        mismatched_names:       __( 'Mismatched Names', 'hifqa-fraud-detector' ),
+        no_phone_number:        __( 'No Phone Number', 'hifqa-fraud-detector' ),
+        payment_method_risk:    __( 'Payment Method Risk', 'hifqa-fraud-detector' ),
+        multiple_addresses:     __( 'Multiple Addresses', 'hifqa-fraud-detector' ),
+        order_total_anomaly:    __( 'Order Total Anomaly', 'hifqa-fraud-detector' ),
+        odd_hours:              __( 'Odd Hours', 'hifqa-fraud-detector' ),
+        guest_checkout:         __( 'Guest Checkout', 'hifqa-fraud-detector' ),
+        new_account:            __( 'New Account', 'hifqa-fraud-detector' ),
     };
 
     const tiers = [1, 2, 3];
@@ -190,10 +214,14 @@ const WeightsPanel = ({ weights, onReset, resetting }) => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <div>
                     <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
-                        Signal Weight Personalization
+                        { __( 'Signal Weight Personalization', 'hifqa-fraud-detector' ) }
                     </h2>
                     <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-                        {weights.calibration} · {weights.false_positives} overrides recorded
+                        {weights.calibration} · { sprintf(
+                            /* translators: %d: number of merchant overrides */
+                            _n( '%d override recorded', '%d overrides recorded', weights.false_positives, 'hifqa-fraud-detector' ),
+                            weights.false_positives
+                        ) }
                     </p>
                 </div>
                 <button onClick={onReset} disabled={resetting} style={{
@@ -204,7 +232,7 @@ const WeightsPanel = ({ weights, onReset, resetting }) => {
                     background: '#fff', color: '#64748b',
                     opacity: resetting ? 0.6 : 1,
                 }}>
-                    {resetting ? '⏳ Resetting...' : '↺ Reset to Defaults'}
+                    {resetting ? '⏳ ' + __( 'Resetting…', 'hifqa-fraud-detector' ) : '↺ ' + __( 'Reset to Defaults', 'hifqa-fraud-detector' )}
                 </button>
             </div>
             {/* Personalization status */}
@@ -216,8 +244,17 @@ const WeightsPanel = ({ weights, onReset, resetting }) => {
                 color: weights.personalized ? '#1d4ed8' : '#64748b',
             }}>
                 {weights.personalized
-                    ? `✅ Your signal weights have been personalized based on ${weights.false_positives} false positive override${weights.false_positives !== 1 ? 's' : ''}. The system is learning your store's patterns.`
-                    : '⚖️ Using global default weights. Signal weights will personalize automatically as you approve or override flagged orders.'
+                    ? '✅ ' + sprintf(
+                        /* translators: %d: number of false positive overrides */
+                        _n(
+                            'Your signal weights have been personalized based on %d false positive override. The system is learning your store\'s patterns.',
+                            'Your signal weights have been personalized based on %d false positive overrides. The system is learning your store\'s patterns.',
+                            weights.false_positives,
+                            'hifqa-fraud-detector'
+                        ),
+                        weights.false_positives
+                    )
+                    : '⚖️ ' + __( 'Using global default weights. Signal weights will personalize automatically as you approve or override flagged orders.', 'hifqa-fraud-detector' )
                 }
             </div>
 
@@ -292,7 +329,11 @@ const WeightsPanel = ({ weights, onReset, resetting }) => {
                                                 background: '#fffbeb', color: '#d97706',
                                                 border: '1px solid #fde68a',
                                             }}>
-                                                -{w.reduction}% reduced
+                                                { sprintf(
+                                                    /* translators: %d: percentage a signal weight has been reduced by */
+                                                    __( '-%d%% reduced', 'hifqa-fraud-detector' ),
+                                                    w.reduction
+                                                ) }
                                             </span>
                                         ) : (
                                             <span style={{
@@ -300,7 +341,7 @@ const WeightsPanel = ({ weights, onReset, resetting }) => {
                                                 fontSize: '11px', color: '#94a3b8',
                                                 background: '#f8fafc', border: '1px solid #e2e8f0',
                                             }}>
-                                                default
+                                                { __( 'default', 'hifqa-fraud-detector' ) }
                                             </span>
                                         )}
                                     </div>
@@ -308,7 +349,11 @@ const WeightsPanel = ({ weights, onReset, resetting }) => {
                                     {/* Override count */}
                                     <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'right' }}>
                                         {w.times_overridden > 0
-                                            ? `${w.times_overridden} override${w.times_overridden !== 1 ? 's' : ''}`
+                                            ? sprintf(
+                                                /* translators: %d: number of times a signal was overridden */
+                                                _n( '%d override', '%d overrides', w.times_overridden, 'hifqa-fraud-detector' ),
+                                                w.times_overridden
+                                            )
                                             : '—'
                                         }
                                     </div>
@@ -327,11 +372,8 @@ const WeightsPanel = ({ weights, onReset, resetting }) => {
                 borderRadius: '10px', fontSize: '12px', color: '#64748b',
                 lineHeight: '1.6'
             }}>
-                <strong style={{ color: '#475569' }}>How personalization works:</strong>
-                {' '}When you mark a blocked order as "Not Fraud", the signals that triggered that block
-                are slightly reduced (-0.02 per override, minimum 0.01).
-                After 10+ overrides, your weights are calibrated to your store's specific patterns.
-                <strong style={{ color: '#f59e0b' }}> Yellow bars</strong> show signals that have been reduced.
+                <strong style={{ color: '#475569' }}>{ __( 'How personalization works:', 'hifqa-fraud-detector' ) }</strong>
+                {' '}{ __( 'When you mark a blocked order as "Not Fraud", the signals that triggered that block are slightly reduced (-0.02 per override, minimum 0.01). After 10+ overrides, your weights are calibrated to your store\'s specific patterns. Yellow bars show signals that have been reduced.', 'hifqa-fraud-detector' ) }
             </div>
 
         </div>
@@ -404,10 +446,10 @@ const FraudDashboard = () => {
                     }}>🛡️</div>
                     <div>
                         <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '600', color: '#1e293b' }}>
-                            Hifqa
+                            { __( 'HIFQA Fraud Detector', 'hifqa-fraud-detector' ) }
                         </h1>
                         <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
-                            WooCommerce Protection Dashboard
+                            { __( 'WooCommerce Protection Dashboard', 'hifqa-fraud-detector' ) }
                         </p>
                     </div>
                 </div>
@@ -416,7 +458,7 @@ const FraudDashboard = () => {
                     border: '1px solid #bfdbfe', borderRadius: '20px',
                     fontSize: '12px', color: '#3b82f6'
                 }}>
-                    ● Live Protection Active
+                    ● { __( 'Live Protection Active', 'hifqa-fraud-detector' ) }
                 </div>
             </div>
 
@@ -428,7 +470,7 @@ const FraudDashboard = () => {
                         padding: '4px 10px', borderRadius: '12px',
                         background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0'
                     }}>
-                        ✅ Local Scoring: Active
+                        ✅ { __( 'Local Scoring: Active', 'hifqa-fraud-detector' ) }
                     </span>
                     <span style={{
                         padding: '4px 10px', borderRadius: '12px',
@@ -436,7 +478,7 @@ const FraudDashboard = () => {
                         color: stats.tier1_active ? '#1d4ed8' : '#94a3b8',
                         border: `1px solid ${stats.tier1_active ? '#bfdbfe' : '#e2e8f0'}`
                     }}>
-                        {stats.tier1_active ? '✅' : '○'} Vector Memory: {stats.tier1_active ? 'Active' : 'Off'}
+                        {stats.tier1_active ? '✅' : '○'} {stats.tier1_active ? __( 'Vector Memory: Active', 'hifqa-fraud-detector' ) : __( 'Vector Memory: Off', 'hifqa-fraud-detector' )}
                     </span>
                     <span style={{
                         padding: '4px 10px', borderRadius: '12px',
@@ -444,7 +486,7 @@ const FraudDashboard = () => {
                         color: stats.tier2_active ? '#1d4ed8' : '#94a3b8',
                         border: `1px solid ${stats.tier2_active ? '#bfdbfe' : '#e2e8f0'}`
                     }}>
-                        {stats.tier2_active ? '✅' : '○'} AI Reasoning: {stats.tier2_active ? 'Active' : 'Off'}
+                        {stats.tier2_active ? '✅' : '○'} {stats.tier2_active ? __( 'AI Reasoning: Active', 'hifqa-fraud-detector' ) : __( 'AI Reasoning: Off', 'hifqa-fraud-detector' )}
                     </span>
                 </div>
             )}
@@ -452,8 +494,8 @@ const FraudDashboard = () => {
             {/* Tab Navigation */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '0' }}>
                 {[
-                    { id: 'orders',  label: '🛡️ Orders' },
-                    { id: 'weights', label: '⚖️ Signal Weights' },
+                    { id: 'orders',  label: '🛡️ ' + __( 'Orders', 'hifqa-fraud-detector' ) },
+                    { id: 'weights', label: '⚖️ ' + __( 'Signal Weights', 'hifqa-fraud-detector' ) },
                 ].map( tab => (
                     <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                         padding: '8px 16px',
@@ -476,25 +518,35 @@ const FraudDashboard = () => {
                 <>
                     {/* Stats */}
                     <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-                        <StatCard value={stats?.blocked ?? 0}         label="Blocked Orders"     color="#ef4444" />
-                        <StatCard value={stats?.review ?? 0}          label="Need Review"        color="#f59e0b" />
-                        <StatCard value={stats?.allowed ?? 0}         label="Approved"           color="#10b981" />
-                        <StatCard value={Number(stats?.saved ?? 0).toFixed(0)} label="Fraud Prevented" color="#6366f1" prefix="$" />
+                        <StatCard value={stats?.blocked ?? 0}         label={ __( 'Blocked Orders', 'hifqa-fraud-detector' ) } color="#ef4444" />
+                        <StatCard value={stats?.review ?? 0}          label={ __( 'Need Review', 'hifqa-fraud-detector' ) } color="#f59e0b" />
+                        <StatCard value={stats?.allowed ?? 0}         label={ __( 'Allowed', 'hifqa-fraud-detector' ) } color="#10b981" />
+                        <StatCard value={Number(stats?.saved ?? 0).toFixed(0)} label={ __( 'Value of Blocked Orders', 'hifqa-fraud-detector' ) } color="#6366f1" prefix={ aifdData.currency || '' } />
                     </div>
 
                     {/* Feedback Stats */}
                     <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-                        <StatCard value={stats?.confirmed_fraud ?? 0}  label="Confirmed Fraud"   color="#dc2626" />
-                        <StatCard value={stats?.false_positives ?? 0}  label="False Positives"   color="#0ea5e9" />
+                        <StatCard value={stats?.confirmed_fraud ?? 0}  label={ __( 'Confirmed Fraud', 'hifqa-fraud-detector' ) } color="#dc2626" />
+                        <StatCard value={stats?.false_positives ?? 0}  label={ __( 'False Positives', 'hifqa-fraud-detector' ) } color="#0ea5e9" />
                     </div>
 
                     {/* Filter Tabs */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                         <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em' }}>
-                            Flagged Orders ({filteredOrders.length})
+                            { sprintf(
+                                /* translators: %d: number of flagged orders shown */
+                                __( 'Flagged Orders (%d)', 'hifqa-fraud-detector' ),
+                                filteredOrders.length
+                            ) }
                         </span>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                            {['ALL', 'BLOCK', 'REVIEW', 'PENDING', 'ALLOW'].map( f => (
+                            {[
+                                { id: 'ALL',     label: __( 'All', 'hifqa-fraud-detector' ) },
+                                { id: 'BLOCK',   label: __( 'Block', 'hifqa-fraud-detector' ) },
+                                { id: 'REVIEW',  label: __( 'Review', 'hifqa-fraud-detector' ) },
+                                { id: 'PENDING', label: __( 'Pending', 'hifqa-fraud-detector' ) },
+                                { id: 'ALLOW',   label: __( 'Allow', 'hifqa-fraud-detector' ) },
+                            ].map( ( { id: f, label } ) => (
                                 <button key={f} onClick={() => setFilter(f)} style={{
                                     padding: '5px 12px', borderRadius: '6px',
                                     fontSize: '11px', fontWeight: '500',
@@ -502,7 +554,7 @@ const FraudDashboard = () => {
                                     background: filter === f ? '#1e3a5f' : '#f1f5f9',
                                     color: filter === f ? '#60a5fa' : '#64748b',
                                 }}>
-                                    {f}
+                                    {label}
                                 </button>
                             ))}
                         </div>
@@ -520,18 +572,18 @@ const FraudDashboard = () => {
                                     fontSize: '11px', fontWeight: '600',
                                     color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em'
                                 }}>
-                                    <div>Order</div>
-                                    <div>Customer</div>
-                                    <div>AI Score</div>
-                                    <div>Decision</div>
-                                    <div>Countries</div>
-                                    <div>Amount</div>
-                                    <div>Feedback</div>
+                                    <div>{ __( 'Order', 'hifqa-fraud-detector' ) }</div>
+                                    <div>{ __( 'Customer', 'hifqa-fraud-detector' ) }</div>
+                                    <div>{ __( 'Risk Score', 'hifqa-fraud-detector' ) }</div>
+                                    <div>{ __( 'Decision', 'hifqa-fraud-detector' ) }</div>
+                                    <div>{ __( 'Countries', 'hifqa-fraud-detector' ) }</div>
+                                    <div>{ __( 'Amount', 'hifqa-fraud-detector' ) }</div>
+                                    <div>{ __( 'Feedback', 'hifqa-fraud-detector' ) }</div>
                                 </div>
 
                                 {filteredOrders.length === 0 ? (
                                     <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-                                        ✅ No flagged orders — your store is safe!
+                                        ✅ { __( 'No flagged orders right now.', 'hifqa-fraud-detector' ) }
                                     </div>
                                 ) : (
                                     filteredOrders.map( order => (
@@ -567,7 +619,7 @@ const FraudDashboard = () => {
                                                     {order.billing_country}→{order.shipping_country}
                                                 </div>
                                                 <div style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
-                                                    ${order.total}
+                                                    {order.currency} {order.total}
                                                 </div>
                                                 <div onClick={e => e.stopPropagation()}>
                                                     <FeedbackButtons
@@ -589,24 +641,24 @@ const FraudDashboard = () => {
                                                         {/* AI Reason */}
                                                         <div>
                                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '8px' }}>
-                                                                AI Analysis
+                                                                { __( 'Reason', 'hifqa-fraud-detector' ) }
                                                             </div>
                                                             <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.6', padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                                {order.reason || 'No AI reason available'}
+                                                                {order.reason || __( 'No reason recorded', 'hifqa-fraud-detector' )}
                                                             </div>
                                                         </div>
 
                                                         {/* Review Status */}
                                                         <div>
                                                             <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '8px' }}>
-                                                                Review Status
+                                                                { __( 'Review Status', 'hifqa-fraud-detector' ) }
                                                             </div>
                                                             <div style={{ padding: '12px', background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                                                                 <ReviewBadge status={order.review_status || 'PENDING'} />
                                                                 <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#64748b' }}>
-                                                                    {order.review_status === 'PENDING' && 'Awaiting your review. Confirm as fraud or mark as legitimate.'}
-                                                                    {order.review_status === 'CONFIRMED_FRAUD' && 'You confirmed this as fraud. Pattern saved to Pinecone.'}
-                                                                    {order.review_status === 'FALSE_POSITIVE' && 'You marked this as legitimate. Signal weights adjusted.'}
+                                                                    {order.review_status === 'PENDING' && __( 'Awaiting your review. Confirm as fraud or mark as legitimate.', 'hifqa-fraud-detector' )}
+                                                                    {order.review_status === 'CONFIRMED_FRAUD' && __( 'You confirmed this as fraud.', 'hifqa-fraud-detector' )}
+                                                                    {order.review_status === 'FALSE_POSITIVE' && __( 'You marked this as legitimate. Signal weights adjusted.', 'hifqa-fraud-detector' )}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -625,7 +677,7 @@ const FraudDashboard = () => {
                         <WeightsPanel
                             weights={weights}
                             onReset={async () => {
-                                if ( ! confirm('Reset all signal weights to defaults? This will lose your personalization.') ) return;
+                                if ( ! confirm( __( 'Reset all signal weights to defaults? This will lose your personalization.', 'hifqa-fraud-detector' ) ) ) return;
                                 setResetting(true);
                                 await api.post('weights/reset');
                                 await fetchWeights();

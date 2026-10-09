@@ -105,6 +105,22 @@ class AjaxTest extends WP_Ajax_UnitTestCase {
 		$this->assertStringContainsString( 'Pinecone not configured', $response['data']['message'] );
 	}
 
+	public function test_migrate_patterns_rejects_unknown_providers() {
+		$nonce    = $this->as_role( 'administrator' );
+		$response = $this->call( 'aifd_migrate_patterns', array( 'nonce' => $nonce, 'from' => 'openai', 'to' => 'merchant_2_openai' ) );
+
+		$this->assertFalse( $response['success'] );
+		$this->assertSame( 'Unknown AI provider', $response['data']['message'] );
+	}
+
+	public function test_load_seeds_accepts_a_batch_offset() {
+		$nonce    = $this->as_role( 'administrator' );
+		$response = $this->call( 'aifd_load_seeds', array( 'nonce' => $nonce, 'offset' => '10' ) );
+
+		$this->assertFalse( $response['success'] );
+		$this->assertStringContainsString( 'Pinecone not configured', $response['data']['message'] );
+	}
+
 	// ── aifd_dismiss_migration ─────────────────────────
 
 	public function test_dismiss_migration_marks_switch_handled_for_admins() {

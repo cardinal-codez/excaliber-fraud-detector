@@ -1,4 +1,4 @@
-# Hifqa — AI Fraud Detector
+# HIFQA Fraud Detector
 
 > Production-grade AI-powered fraud detection plugin 
 > for WooCommerce using OpenAI function calling, 
@@ -8,24 +8,26 @@
 
 ## What It Does
 
-Hifqa analyzes every WooCommerce order 
-in real-time using an autonomous AI agent. 
-The agent evaluates 17 weighted fraud signals, 
-searches a vector database of known fraud patterns, 
-checks order velocity, and synthesizes a final 
-risk score with plain-English reasoning.
+HIFQA Fraud Detector scores every WooCommerce order
+in real time against 17 weighted fraud signals, in
+plain PHP on your own server. Optionally, an AI agent
+can then search a vector database of known fraud
+patterns, check order velocity, and add a
+plain-English explanation.
 
 Orders are automatically:
 - ✅ **Allowed** (score 0–39) — processed normally
-- ⚠️ **Flagged for review** (score 40–70) — merchant notified
-- 🚫 **Blocked** (score 71–100) — held + email alert sent
+- ⚠️ **Flagged for review** (score 40–69) — merchant notified
+- 🚫 **Blocked** (score 70–100) — held + email alert sent
+
+Both thresholds are configurable.
 
 ---
 
 ## Local-First by Design
 
-Fraud scoring should never be the reason a checkout fails. The plugin
-runs in three capability tiers, and the bottom one needs nothing at all:
+The plugin runs in three capability tiers, and the bottom one needs
+nothing at all:
 
 | Tier | What it does | Default | Requires |
 | --- | --- | --- | --- |
@@ -33,10 +35,18 @@ runs in three capability tiers, and the bottom one needs nothing at all:
 | **1 — Vector Memory** | Pinecone similarity search | Off | Pinecone key + host |
 | **2 — AI Reasoning** | Function-calling agent | Off | Provider API key |
 
-Every external call is wrapped in a circuit breaker: after three
-consecutive failures a tier disables itself for ten minutes and the
-plugin falls back to the tier below. An OpenAI outage costs you accuracy,
-not orders.
+Tiers 1 and 2 call the external service **synchronously, while the order
+is being placed** — checkout waits for the reply, so a slow provider is a
+slower checkout. A failed or timed-out call falls back to the tier below,
+and a circuit breaker disables a tier for ten minutes after three
+consecutive failures. An error inside scoring is caught and logged rather
+than allowed to break the checkout request.
+
+The AI tier's reply is treated as untrusted input. The decision is
+whitelisted, the score is clamped to 0–100 and the decision re-derived
+from it, and **a local BLOCK is never lowered by the AI** — only the
+merchant can release it. An unusable reply counts as a failure, never as
+a pass.
 
 Tiers 1 and 2 are activated by entering an API key, and deactivated by
 clearing it. **On a fresh install with empty key fields, no order data
@@ -67,25 +77,28 @@ Choose your AI provider:
 - OpenAI (gpt-4o-mini) — default
 - Anthropic (claude-haiku-4-5-20251001)
 - Google Gemini (gemini-2.5-flash)
-- Ollama (local, free, private) ⚠️ VPS only
+- Ollama (self-hosted, free) ⚠️ VPS only
 
 **📊 Provider-Native Embeddings**
 Each provider uses its own embedding model with 
 separate Pinecone namespaces — no cross-provider 
-contamination:
+contamination, and no cross-provider fallback: if the
+selected provider cannot embed (for example Anthropic
+without a Voyage AI key), vector memory stays off
+rather than sending the text somewhere else:
 - OpenAI → text-embedding-3-small (1536d)
 - Anthropic → voyage-3 via Voyage AI (1024d)
-- Gemini → text-embedding-004 (768d)
+- Gemini → gemini-embedding-001 (reduced to 768d)
 - Ollama → nomic-embed-text (768d)
 
 **🔄 Feedback Loop**
-- Confirm Fraud → saves pattern to Pinecone (confidence: 1.0)
+- Confirm Fraud → saves the signal pattern to Pinecone (confidence: 1.0) — no order number, customer detail or AI-written text
 - Override (Not Fraud) → adjusts merchant signal weights
 
 **⚛️ React Dashboard**
 Modern React dashboard built with @wordpress/scripts:
-- Real-time stats (blocked, review, prevented)
-- Flagged orders with AI reasoning
+- Real-time stats (blocked, review, allowed)
+- Flagged orders with the reason for each decision
 - Signal weight visualization per tier
 - Feedback buttons per order
 
@@ -185,21 +198,27 @@ No API key, no account, and no configuration are required to get
 working fraud detection. The AI and vector layers are opt-in:
 
 **To enable Vector Memory (optional)**
-Go to **Fraud Detector → Settings**, enter a Pinecone API key + host
+Go to **HIFQA → Settings**, enter a Pinecone API key + host
 URL, then click **Load 65 Seed Patterns**.
 
 **To enable AI Reasoning (optional)**
 On the same page, choose a provider and enter its API key — or point
 the plugin at a local Ollama host and pay nothing.
 
-Clearing a key field turns that layer back off.
+Saved keys are never printed back into the page. Leave a key field blank
+to keep the saved key; tick **Remove the saved key** to turn that layer
+back off.
+
+Deleting the plugin removes its settings, keys, counters and learned
+weights (`uninstall.php`). Orders and the fraud result saved on each
+order are left alone.
 
 ---
 
 ## Requirements
 
-- WordPress 6.0+
-- WooCommerce 7.0+
+- WordPress 6.6+ (the dashboard depends on the `react-jsx-runtime` script that ships from 6.6)
+- WooCommerce (HPOS and the block checkout are both supported)
 - PHP 8.0+
 
 That's the whole list. API keys are only needed for the optional layers:
@@ -245,13 +264,32 @@ or `WC_DIR`. All outgoing HTTP is faked, so no API keys are used.
 - [x] Feedback loop
 - [x] Per-merchant weight personalization
 - [x] Local-first capability tiers + circuit breakers
-- [ ] Unit tests for signal extraction and risk scoring
+- [x] Unit and integration tests
+- [x] HPOS + block checkout support
 - [ ] WordPress.org submission
 - [ ] Easy Digital Downloads (EDD)
 - [ ] SureCart
 - [ ] Shopify (Python + FastAPI + Azure)
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design document.
+
+---
+
+## Releasing
+
+The WordPress.org package is **not** a zip of this working directory. It
+is built from committed files only, with development files stripped by
+the `export-ignore` rules in `.gitattributes`:
+
+```bash
+npm ci && npm run build      # rebuild build/ from src/ and commit the result
+git archive --format zip --prefix=hifqa-fraud-detector/ \
+    --output hifqa-fraud-detector.zip HEAD
+```
+
+Pushing a tag runs the same `git archive` in `.github/workflows/release.yml`,
+after checking that the committed `build/` matches `src/`. Run Plugin Check
+against the extracted archive, not against this directory.
 
 ---
 

@@ -15,7 +15,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The archive is made from committed files only, so the committed
+      # build/ has to be what src/ produces. Fail the release if it is not.
+      - name: Check committed build is up to date
+        run: |
+          npm ci
+          npm run build
+          git diff --exit-code -- build/
+
       - name: Get Repo Name
         id: get_repo_name
         run: |
@@ -39,6 +53,19 @@ jobs:
           git archive --format zip --prefix="${REPO_NAME}/" --output "${REPO_NAME}-${TAG_NAME}.zip" HEAD
           echo "REPO_NAME=${REPO_NAME}" >> $GITHUB_ENV
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+
+      # Development files are stripped by the export-ignore rules in
+      # .gitattributes. Refuse to publish an archive that still has any.
+      - name: Check archive contains production files only
+        run: |
+          unzip -Z1 "${REPO_NAME}-${TAG_NAME}.zip" > archive-files.txt
+          if grep -E '(^|/)(\.[^/]+|node_modules|vendor|tests)(/|$)|(^|/)(package(-lock)?\.json|composer\.(json|lock)|phpunit\.xml.*|webpack\.config\.js|[A-Z]+\.md)$' archive-files.txt; then
+            echo "Development files found in the release archive" >&2
+            exit 1
+          fi
+          grep -q "^${REPO_NAME}/readme.txt$" archive-files.txt
+          grep -q "^${REPO_NAME}/uninstall.php$" archive-files.txt
+          grep -q "^${REPO_NAME}/build/index.js$" archive-files.txt
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2

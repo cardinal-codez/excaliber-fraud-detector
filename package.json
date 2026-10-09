@@ -1,8 +1,8 @@
 {
   "name": "hifqa-fraud-detector",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "HIFQA Fraud Detector — admin dashboard build",
   "scripts": {
     "start": "wp-scripts start",
     "build": "wp-scripts build"
@@ -13,7 +13,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "GPL-2.0-or-later",
   "bugs": {
     "url": "https://github.com/dilrubaummer/hifqa-fraud-detector/issues"
   },

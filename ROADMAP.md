@@ -1,4 +1,4 @@
-# Hifqa Roadmap
+# HIFQA Fraud Detector Roadmap
 
 This document outlines the current status of the project and planned enhancements.
 
