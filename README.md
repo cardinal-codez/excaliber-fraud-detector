@@ -8,6 +8,8 @@
 
 ## What It Does
 
+This fork builds on the excellent WooCommerce fraud-detection plugin by dilrubaummer. 
+My goal is to add new features, refine the experience, and expand its capabilities while preserving the strengths of the original project.
 Excaliber Fraud Detector scores every WooCommerce order
 in real time against 17 weighted fraud signals, in
 plain PHP on your own server. Optionally, an AI agent
