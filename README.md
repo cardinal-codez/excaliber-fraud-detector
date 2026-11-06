@@ -1,4 +1,4 @@
-# HIFQA Fraud Detector
+# Excaliber Fraud Detector
 
 > Production-grade AI-powered fraud detection plugin 
 > for WooCommerce using OpenAI function calling, 
@@ -8,7 +8,7 @@
 
 ## What It Does
 
-HIFQA Fraud Detector scores every WooCommerce order
+Excaliber Fraud Detector scores every WooCommerce order
 in real time against 17 weighted fraud signals, in
 plain PHP on your own server. Optionally, an AI agent
 can then search a vector database of known fraud
