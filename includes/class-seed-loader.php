@@ -39,7 +39,7 @@ class AIFD_Seed_Loader {
         if ( ! $this->pinecone->is_configured() ) {
             return array(
                 'success' => false,
-                'message' => __( 'Pinecone not configured — add API key and host URL first', 'hifqa-fraud-detector' ),
+                'message' => __( 'Pinecone not configured — add API key and host URL first', 'excaliber-fraud-detector' ),
             );
         }
 
@@ -59,7 +59,7 @@ class AIFD_Seed_Loader {
         if ( ! is_readable( $seed_file ) ) {
             return array(
                 'success' => false,
-                'message' => __( 'seed-patterns.json not found in data/ folder', 'hifqa-fraud-detector' )
+                'message' => __( 'seed-patterns.json not found in data/ folder', 'excaliber-fraud-detector' )
             );
         }
 
@@ -69,7 +69,7 @@ class AIFD_Seed_Loader {
         if ( empty( $patterns ) || ! is_array( $patterns ) ) {
             return array(
                 'success' => false,
-                'message' => __( 'No patterns found in seed-patterns.json', 'hifqa-fraud-detector' )
+                'message' => __( 'No patterns found in seed-patterns.json', 'excaliber-fraud-detector' )
             );
         }
 
@@ -143,13 +143,13 @@ class AIFD_Seed_Loader {
         if ( 0 === $loaded && $failed > 0 ) {
             $result['success'] = false;
             $result['done']    = true;
-            $result['message'] = $last_error ?: __( 'No patterns could be loaded.', 'hifqa-fraud-detector' );
+            $result['message'] = $last_error ?: __( 'No patterns could be loaded.', 'excaliber-fraud-detector' );
             return $result;
         }
 
         $result['success'] = true;
         /* translators: 1: number of patterns loaded, 2: total patterns, 3: Pinecone namespace, 4: number of failures */
-        $result['message'] = sprintf( __( 'Loaded %1$d/%2$d patterns in namespace: %3$s. Failed: %4$d', 'hifqa-fraud-detector' ), $loaded, $total, $namespace, $failed );
+        $result['message'] = sprintf( __( 'Loaded %1$d/%2$d patterns in namespace: %3$s. Failed: %4$d', 'excaliber-fraud-detector' ), $loaded, $total, $namespace, $failed );
 
         return $result;
 

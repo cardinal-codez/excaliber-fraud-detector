@@ -1,7 +1,7 @@
 <?php
-namespace Hifqa\Tests\Integration;
+namespace excaliber\Tests\Integration;
 
-use Hifqa\Tests\TestCase;
+use excaliber\Tests\TestCase;
 use WP_REST_Request;
 use WP_REST_Server;
 
@@ -94,7 +94,7 @@ class RestApiTest extends TestCase {
 		wp_set_current_user( $this->admin_id );
 		$blocked = $this->make_blocked_order();
 
-		// An order Hifqa never scored (e.g. created before activation).
+		// An order excaliber never scored (e.g. created before activation).
 		remove_action( 'woocommerce_new_order', 'aifd_catch_new_order', 10 );
 		$unscored = $this->make_order( array( 'billing_email' => 'old@example.com' ) );
 		$unscored->set_status( 'on-hold' );

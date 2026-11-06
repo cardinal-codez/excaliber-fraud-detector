@@ -90,12 +90,12 @@ function aifd_ajax_load_seeds() {
 
     // Verify nonce
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Security check failed', 'hifqa-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'excaliber-fraud-detector' ) ) );
     }
 
     // Check permissions
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Permission denied', 'hifqa-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Permission denied', 'excaliber-fraud-detector' ) ) );
     }
 
     // The settings page loads the patterns a batch at a time so that no single
@@ -135,7 +135,7 @@ function aifd_get_stats() {
 function aifd_get_flagged_orders() {
 
     if ( ! function_exists( 'wc_get_orders' ) ) {
-        return new WP_Error( 'woocommerce_inactive', __( 'WooCommerce must be active.', 'hifqa-fraud-detector' ), array( 'status' => 501 ) );
+        return new WP_Error( 'woocommerce_inactive', __( 'WooCommerce must be active.', 'excaliber-fraud-detector' ), array( 'status' => 501 ) );
     }
 
     $orders = wc_get_orders( array(
@@ -190,22 +190,22 @@ function aifd_order_action( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', __( 'Order not found', 'hifqa-fraud-detector' ), array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'excaliber-fraud-detector' ), array( 'status' => 404 ) );
     }
 
     // Decision meta is saved before the status change so aifd_enforce_block_status
     // sees the merchant's verdict rather than the original BLOCK.
     if ( $action === 'approve' ) {
         $order->update_meta_data( '_aifd_decision', 'APPROVED' );
-        $order->update_status( 'processing', __( 'Manually approved by admin via HIFQA Fraud Detector.', 'hifqa-fraud-detector' ) );
-        $message = __( 'Order approved successfully', 'hifqa-fraud-detector' );
+        $order->update_status( 'processing', __( 'Manually approved by admin via excaliber Fraud Detector.', 'excaliber-fraud-detector' ) );
+        $message = __( 'Order approved successfully', 'excaliber-fraud-detector' );
     } elseif ( $action === 'block' ) {
         $order->update_meta_data( '_aifd_decision', 'BLOCKED' );
-        $order->update_status( 'cancelled', __( 'Manually blocked by admin via HIFQA Fraud Detector.', 'hifqa-fraud-detector' ) );
-        $message = __( 'Order blocked successfully', 'hifqa-fraud-detector' );
+        $order->update_status( 'cancelled', __( 'Manually blocked by admin via excaliber Fraud Detector.', 'excaliber-fraud-detector' ) );
+        $message = __( 'Order blocked successfully', 'excaliber-fraud-detector' );
     } else {
         // The route schema only lets 'approve' and 'block' through.
-        return new WP_Error( 'aifd_invalid_action', __( 'Unknown action', 'hifqa-fraud-detector' ), array( 'status' => 400 ) );
+        return new WP_Error( 'aifd_invalid_action', __( 'Unknown action', 'excaliber-fraud-detector' ), array( 'status' => 400 ) );
     }
 
     $order->save();
@@ -224,7 +224,7 @@ function aifd_confirm_fraud( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', __( 'Order not found', 'hifqa-fraud-detector' ), array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'excaliber-fraud-detector' ), array( 'status' => 404 ) );
     }
 
     // Update review status
@@ -245,16 +245,16 @@ function aifd_confirm_fraud( $request ) {
 
     // Add order note
     if ( $saved ) {
-        $pinecone_note = __( 'Pattern saved to Pinecone vector store — system will recognize this fraud type faster next time.', 'hifqa-fraud-detector' );
+        $pinecone_note = __( 'Pattern saved to Pinecone vector store — system will recognize this fraud type faster next time.', 'excaliber-fraud-detector' );
     } elseif ( $vector_on ) {
         /* translators: %s: the reason the pattern could not be saved */
-        $pinecone_note = sprintf( __( 'Note: the pattern was not saved to Pinecone. %s', 'hifqa-fraud-detector' ), $why );
+        $pinecone_note = sprintf( __( 'Note: the pattern was not saved to Pinecone. %s', 'excaliber-fraud-detector' ), $why );
     } else {
         $pinecone_note = '';
     }
 
     $order->add_order_note(
-        trim( '🚨 ' . __( 'CONFIRMED FRAUD: Manually confirmed by merchant.', 'hifqa-fraud-detector' ) . ' ' . $pinecone_note ),
+        trim( '🚨 ' . __( 'CONFIRMED FRAUD: Manually confirmed by merchant.', 'excaliber-fraud-detector' ) . ' ' . $pinecone_note ),
         false
     );
     $order->save();
@@ -280,12 +280,12 @@ function aifd_confirm_fraud( $request ) {
     );
 
     if ( $saved ) {
-        $message = __( 'Confirmed as fraud. Pattern saved to Pinecone — the system will recognize this faster next time.', 'hifqa-fraud-detector' );
+        $message = __( 'Confirmed as fraud. Pattern saved to Pinecone — the system will recognize this faster next time.', 'excaliber-fraud-detector' );
     } elseif ( $vector_on ) {
         /* translators: %s: the reason the pattern could not be saved */
-        $message = sprintf( __( 'Confirmed as fraud. The pattern was not saved to Pinecone: %s', 'hifqa-fraud-detector' ), $why );
+        $message = sprintf( __( 'Confirmed as fraud. The pattern was not saved to Pinecone: %s', 'excaliber-fraud-detector' ), $why );
     } else {
-        $message = __( 'Confirmed as fraud.', 'hifqa-fraud-detector' );
+        $message = __( 'Confirmed as fraud.', 'excaliber-fraud-detector' );
     }
 
     return rest_ensure_response( array(
@@ -304,7 +304,7 @@ function aifd_override_fraud( $request ) {
     $order    = wc_get_order( $order_id );
 
     if ( ! $order ) {
-        return new WP_Error( 'not_found', __( 'Order not found', 'hifqa-fraud-detector' ), array( 'status' => 404 ) );
+        return new WP_Error( 'not_found', __( 'Order not found', 'excaliber-fraud-detector' ), array( 'status' => 404 ) );
     }
 
     // Get fired signals BEFORE we change anything
@@ -320,11 +320,11 @@ function aifd_override_fraud( $request ) {
     // Release order back to processing
     $order->update_status(
         'processing',
-        '✅ ' . __( 'FALSE POSITIVE: Override by merchant — order approved for processing.', 'hifqa-fraud-detector' )
+        '✅ ' . __( 'FALSE POSITIVE: Override by merchant — order approved for processing.', 'excaliber-fraud-detector' )
     );
 
     $order->add_order_note(
-        '✅ ' . __( 'FALSE POSITIVE: Merchant confirmed this is a legitimate order. Signal weights adjusted.', 'hifqa-fraud-detector' ),
+        '✅ ' . __( 'FALSE POSITIVE: Merchant confirmed this is a legitimate order. Signal weights adjusted.', 'excaliber-fraud-detector' ),
         false
     );
 
@@ -343,7 +343,7 @@ function aifd_override_fraud( $request ) {
 
     return rest_ensure_response( array(
         'success' => true,
-        'message' => __( 'Order approved. Signal weights adjusted to reduce false positives.', 'hifqa-fraud-detector' ),
+        'message' => __( 'Order approved. Signal weights adjusted to reduce false positives.', 'excaliber-fraud-detector' ),
         'status'  => 'FALSE_POSITIVE',
     ));
 
@@ -380,9 +380,9 @@ function aifd_get_weights() {
         'false_positives' => $false_positives,
         'personalized'    => ! empty( $merchant_weights ),
         'calibration'     => $false_positives >= 10
-            ? __( 'Well calibrated', 'hifqa-fraud-detector' )
+            ? __( 'Well calibrated', 'excaliber-fraud-detector' )
             /* translators: %d: number of merchant overrides so far */
-            : sprintf( __( 'Still learning (%d/10 overrides)', 'hifqa-fraud-detector' ), $false_positives ),
+            : sprintf( __( 'Still learning (%d/10 overrides)', 'excaliber-fraud-detector' ), $false_positives ),
     ));
 
 }
@@ -394,7 +394,7 @@ function aifd_reset_weights() {
 
     return rest_ensure_response( array(
         'success' => true,
-        'message' => __( 'Weights reset to global defaults', 'hifqa-fraud-detector' ),
+        'message' => __( 'Weights reset to global defaults', 'excaliber-fraud-detector' ),
     ));
 
 }
@@ -413,24 +413,24 @@ add_action( 'wp_ajax_aifd_migrate_patterns', 'aifd_ajax_migrate_patterns' );
 function aifd_ajax_migrate_patterns() {
 
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Security check failed', 'hifqa-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'excaliber-fraud-detector' ) ) );
     }
 
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Permission denied', 'hifqa-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Permission denied', 'excaliber-fraud-detector' ) ) );
     }
 
     $from = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
     $to   = sanitize_text_field( wp_unslash( $_POST['to']   ?? '' ) );
 
     if ( empty( $from ) || empty( $to ) ) {
-        wp_send_json_error( array( 'message' => __( 'Missing provider information', 'hifqa-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Missing provider information', 'excaliber-fraud-detector' ) ) );
     }
 
     $allowed = aifd_get_allowed_providers();
 
     if ( ! in_array( $from, $allowed, true ) || ! in_array( $to, $allowed, true ) ) {
-        wp_send_json_error( array( 'message' => __( 'Unknown AI provider', 'hifqa-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Unknown AI provider', 'excaliber-fraud-detector' ) ) );
     }
 
     // The settings page loads the seeds in batches first and then asks for the
@@ -455,11 +455,11 @@ add_action( 'wp_ajax_aifd_dismiss_migration', 'aifd_ajax_dismiss_migration' );
 function aifd_ajax_dismiss_migration() {
 
     if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ?? '' ) ), 'aifd_settings_nonce' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Security check failed', 'hifqa-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Security check failed', 'excaliber-fraud-detector' ) ) );
     }
 
     if ( ! current_user_can( 'manage_options' ) ) {
-        wp_send_json_error( array( 'message' => __( 'Permission denied', 'hifqa-fraud-detector' ) ) );
+        wp_send_json_error( array( 'message' => __( 'Permission denied', 'excaliber-fraud-detector' ) ) );
     }
 
     update_option( 'aifd_provider_switched', array( 'handled' => true ) );
@@ -470,6 +470,6 @@ function aifd_ajax_dismiss_migration() {
         $loader->load_seeds();
     }
 
-    wp_send_json_success( array( 'message' => __( 'Starting fresh with new provider', 'hifqa-fraud-detector' ) ) );
+    wp_send_json_success( array( 'message' => __( 'Starting fresh with new provider', 'excaliber-fraud-detector' ) ) );
 
 }

@@ -1,4 +1,4 @@
-=== HIFQA Fraud Detector for WooCommerce ===
+=== excaliber Fraud Detector for WooCommerce ===
 Contributors: dilrubaummer
 Tags: fraud, woocommerce, security, ai, vector search
 Requires at least: 6.6
@@ -12,7 +12,7 @@ Real-time fraud detection for WooCommerce. Local signal scoring works out of the
 
 == Description ==
 
-HIFQA Fraud Detector scores every WooCommerce order against 17 weighted
+excaliber Fraud Detector scores every WooCommerce order against 17 weighted
 fraud signals (disposable emails, address mismatches, card testing
 patterns, and more) the moment it is placed. The local scoring engine
 is pure PHP, requires no setup, and sends no data anywhere — it works
@@ -73,14 +73,14 @@ all.
 The admin dashboard is built from the unminified source in the `src/`
 folder of this plugin. The full development repository, including the
 build tooling, is at
-https://github.com/dilrubaummer/hifqa-fraud-detector
+https://github.com/dilrubaummer/excaliber-fraud-detector
 
 == External services ==
 
-HIFQA Fraud Detector can connect to the services below. Every one of
+excaliber Fraud Detector can connect to the services below. Every one of
 them is **off by default**. Nothing is sent until you save that
 service's API key (or, for Ollama, its host URL) in
-HIFQA → Settings, and removing the key turns the layer off again. If
+excaliber → Settings, and removing the key turns the layer off again. If
 no optional layer is configured, no order data leaves your site.
 
 Customer names, full email addresses, IP addresses, phone numbers,
@@ -206,7 +206,7 @@ control.
 
 1. Upload and activate the plugin. WooCommerce must be active.
 2. Local fraud scoring is active immediately — no setup required.
-3. (Optional) Go to HIFQA → Settings to enable Vector Memory or AI
+3. (Optional) Go to excaliber → Settings to enable Vector Memory or AI
    Reasoning. Each activates only once you save its API key; leave the
    key field blank to keep the layer off.
 
@@ -227,7 +227,7 @@ as passed by the AI layer.
 
 = Can the AI layer approve an order that the local rules blocked? =
 No. A local block stays a block. Only you can release it, from the
-HIFQA dashboard.
+excaliber dashboard.
 
 = Is customer data shared with anyone by default? =
 No. Out of the box, all scoring runs locally on your own server and no

@@ -1,5 +1,5 @@
 <?php
-namespace Hifqa\Tests\Integration;
+namespace excaliber\Tests\Integration;
 
 use WP_Ajax_UnitTestCase;
 use WPAjaxDieContinueException;
@@ -8,7 +8,7 @@ use WPAjaxDieStopException;
 /**
  * admin-ajax handlers used by the settings page script.
  *
- * @group hifqa-ajax
+ * @group excaliber-ajax
  */
 class AjaxTest extends WP_Ajax_UnitTestCase {
 

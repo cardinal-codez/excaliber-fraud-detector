@@ -1,7 +1,7 @@
 <?php
-namespace Hifqa\Tests\Unit;
+namespace excaliber\Tests\Unit;
 
-use Hifqa\Tests\TestCase;
+use excaliber\Tests\TestCase;
 
 /**
  * Tier gates (vector + AI layers are opt-in) and the circuit breaker.

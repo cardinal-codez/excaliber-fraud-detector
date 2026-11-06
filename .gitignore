@@ -24,3 +24,5 @@ npm-debug.log*
 # Composer dev dependencies (PHPUnit)
 vendor/
 .phpunit.result.cache
+
+AGENTS.md

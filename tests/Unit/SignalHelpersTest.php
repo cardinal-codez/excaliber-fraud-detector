@@ -1,7 +1,7 @@
 <?php
-namespace Hifqa\Tests\Unit;
+namespace excaliber\Tests\Unit;
 
-use Hifqa\Tests\TestCase;
+use excaliber\Tests\TestCase;
 
 /**
  * The individual fraud-signal detectors.

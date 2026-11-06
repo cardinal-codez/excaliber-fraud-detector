@@ -1,7 +1,7 @@
 <?php
-namespace Hifqa\Tests\Unit;
+namespace excaliber\Tests\Unit;
 
-use Hifqa\Tests\TestCase;
+use excaliber\Tests\TestCase;
 
 /**
  * An AI reply is untrusted input: validation, clamping and the local-block floor.

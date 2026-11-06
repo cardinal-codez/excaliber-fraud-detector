@@ -177,7 +177,7 @@ function aifd_log_failure( $stage, $message, $order_id = 0 ) {
         $entry = 'Order #' . (int) $order_id . ' ' . $entry;
     }
 
-    wc_get_logger()->warning( $entry, array( 'source' => 'hifqa-fraud-detector' ) );
+    wc_get_logger()->warning( $entry, array( 'source' => 'excaliber-fraud-detector' ) );
 
 }
 
@@ -275,7 +275,7 @@ function aifd_apply_local_floor( $ai_result, $local_result ) {
 
     if ( '' !== $ai_reason ) {
         /* translators: %s: the AI provider's explanation for a lower risk rating */
-        $ai_result['reason'] .= ' ' . sprintf( __( 'The AI layer rated this order lower, which does not lift a local block. AI note: %s', 'hifqa-fraud-detector' ), $ai_reason );
+        $ai_result['reason'] .= ' ' . sprintf( __( 'The AI layer rated this order lower, which does not lift a local block. AI note: %s', 'excaliber-fraud-detector' ), $ai_reason );
     }
 
     return $ai_result;
@@ -365,7 +365,7 @@ function aifd_score_order( $order ) {
             'risk_score' => $thresholds['review'],
             'risk_level' => 'MEDIUM',
             'decision'   => 'REVIEW',
-            'reason'     => __( 'The fraud check could not be completed for this order — manual review needed.', 'hifqa-fraud-detector' ),
+            'reason'     => __( 'The fraud check could not be completed for this order — manual review needed.', 'excaliber-fraud-detector' ),
             'source'     => 'error',
         );
 
@@ -380,7 +380,7 @@ function aifd_score_order( $order ) {
         'risk_score' => $risk_result['risk_score'],
         'risk_level' => $risk_result['risk_level'],
         'decision'   => $risk_result['decision'],
-        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: __( 'No risk signals detected.', 'hifqa-fraud-detector' ),
+        'reason'     => implode( '. ', $risk_result['reasons'] ) ?: __( 'No risk signals detected.', 'excaliber-fraud-detector' ),
         'source'     => 'local_rules',
     );
 
@@ -845,23 +845,23 @@ function aifd_calculate_risk_score( $signals ) {
     $fired_signals = array();
 
     $signal_map = array(
-        'card_testing_pattern'   => __( 'Card testing pattern detected', 'hifqa-fraud-detector' ),
-        'disposable_email'       => __( 'Disposable or suspicious email', 'hifqa-fraud-detector' ),
-        'high_velocity'          => __( 'High order velocity from same customer', 'hifqa-fraud-detector' ),
-        'address_mismatch'       => __( 'Billing and shipping country mismatch', 'hifqa-fraud-detector' ),
-        'freight_forwarder'      => __( 'Shipping to freight forwarder address', 'hifqa-fraud-detector' ),
-        'chargeback_history'     => __( 'Customer has previous chargeback history', 'hifqa-fraud-detector' ),
-        'first_order_high_value' => __( 'High value first order from new customer', 'hifqa-fraud-detector' ),
-        'ip_proxy_vpn'           => __( 'Order placed via VPN or proxy', 'hifqa-fraud-detector' ),
-        'risky_country_combo'    => __( 'High-risk billing/shipping country combination', 'hifqa-fraud-detector' ),
-        'mismatched_names'       => __( 'Billing and shipping names differ', 'hifqa-fraud-detector' ),
-        'no_phone_number'        => __( 'No phone number provided', 'hifqa-fraud-detector' ),
-        'payment_method_risk'    => __( 'Risky payment method used', 'hifqa-fraud-detector' ),
-        'multiple_addresses'     => __( 'Multiple shipping addresses for same email', 'hifqa-fraud-detector' ),
-        'order_total_anomaly'    => __( 'Order value far above store average', 'hifqa-fraud-detector' ),
-        'odd_hours'              => __( 'Order placed between midnight and 5am', 'hifqa-fraud-detector' ),
-        'guest_checkout'         => __( 'Guest checkout — no account created', 'hifqa-fraud-detector' ),
-        'new_account'            => __( 'Account created less than 24 hours ago', 'hifqa-fraud-detector' ),
+        'card_testing_pattern'   => __( 'Card testing pattern detected', 'excaliber-fraud-detector' ),
+        'disposable_email'       => __( 'Disposable or suspicious email', 'excaliber-fraud-detector' ),
+        'high_velocity'          => __( 'High order velocity from same customer', 'excaliber-fraud-detector' ),
+        'address_mismatch'       => __( 'Billing and shipping country mismatch', 'excaliber-fraud-detector' ),
+        'freight_forwarder'      => __( 'Shipping to freight forwarder address', 'excaliber-fraud-detector' ),
+        'chargeback_history'     => __( 'Customer has previous chargeback history', 'excaliber-fraud-detector' ),
+        'first_order_high_value' => __( 'High value first order from new customer', 'excaliber-fraud-detector' ),
+        'ip_proxy_vpn'           => __( 'Order placed via VPN or proxy', 'excaliber-fraud-detector' ),
+        'risky_country_combo'    => __( 'High-risk billing/shipping country combination', 'excaliber-fraud-detector' ),
+        'mismatched_names'       => __( 'Billing and shipping names differ', 'excaliber-fraud-detector' ),
+        'no_phone_number'        => __( 'No phone number provided', 'excaliber-fraud-detector' ),
+        'payment_method_risk'    => __( 'Risky payment method used', 'excaliber-fraud-detector' ),
+        'multiple_addresses'     => __( 'Multiple shipping addresses for same email', 'excaliber-fraud-detector' ),
+        'order_total_anomaly'    => __( 'Order value far above store average', 'excaliber-fraud-detector' ),
+        'odd_hours'              => __( 'Order placed between midnight and 5am', 'excaliber-fraud-detector' ),
+        'guest_checkout'         => __( 'Guest checkout — no account created', 'excaliber-fraud-detector' ),
+        'new_account'            => __( 'Account created less than 24 hours ago', 'excaliber-fraud-detector' ),
     );
 
     foreach ( $signal_map as $signal => $description ) {
@@ -1167,28 +1167,28 @@ function aifd_update_order_status( $order_id, $ai_result, $risk_result ) {
 
     $ai_note = empty( $ai_result['ai_failed'] )
         ? ''
-        : ' ' . __( 'The AI layer was unavailable, so this result comes from local rules only.', 'hifqa-fraud-detector' );
+        : ' ' . __( 'The AI layer was unavailable, so this result comes from local rules only.', 'excaliber-fraud-detector' );
 
     // Update WooCommerce order status
     if ( $decision === 'BLOCK' ) {
         $order->update_status( 'on-hold',
             /* translators: %d: fraud risk score out of 100 */
-            sprintf( __( 'HIFQA Fraud Detector: HIGH RISK blocked. Score: %d/100.', 'hifqa-fraud-detector' ), $score ) );
+            sprintf( __( 'excaliber Fraud Detector: HIGH RISK blocked. Score: %d/100.', 'excaliber-fraud-detector' ), $score ) );
         $order->add_order_note(
             /* translators: 1: fraud risk score out of 100, 2: reason for the decision */
-            '🚨 ' . sprintf( __( 'FRAUD ALERT: Blocked by HIFQA Fraud Detector. Score: %1$d/100. Reason: %2$s', 'hifqa-fraud-detector' ), $score, $reason ) . $ai_note,
+            '🚨 ' . sprintf( __( 'FRAUD ALERT: Blocked by excaliber Fraud Detector. Score: %1$d/100. Reason: %2$s', 'excaliber-fraud-detector' ), $score, $reason ) . $ai_note,
             false
         );
     } elseif ( $decision === 'REVIEW' ) {
         $order->add_order_note(
             /* translators: 1: fraud risk score out of 100, 2: reason for the decision */
-            '⚠️ ' . sprintf( __( 'FRAUD WARNING: Flagged for review. Score: %1$d/100. Reason: %2$s', 'hifqa-fraud-detector' ), $score, $reason ) . $ai_note,
+            '⚠️ ' . sprintf( __( 'FRAUD WARNING: Flagged for review. Score: %1$d/100. Reason: %2$s', 'excaliber-fraud-detector' ), $score, $reason ) . $ai_note,
             false
         );
     } else {
         $order->add_order_note(
             /* translators: %d: fraud risk score out of 100 */
-            '✅ ' . sprintf( __( 'FRAUD CHECK PASSED. Score: %d/100.', 'hifqa-fraud-detector' ), $score ) . $ai_note,
+            '✅ ' . sprintf( __( 'FRAUD CHECK PASSED. Score: %d/100.', 'excaliber-fraud-detector' ), $score ) . $ai_note,
             false
         );
     }
@@ -1220,24 +1220,24 @@ function aifd_send_alert_email( $order_id, $ai_result ) {
 
     $subject = $decision === 'BLOCK'
         /* translators: 1: order ID, 2: fraud risk score out of 100 */
-        ? '🚨 ' . sprintf( __( 'FRAUD ALERT: Order #%1$d Blocked — Score %2$d/100', 'hifqa-fraud-detector' ), $order_id, $score )
+        ? '🚨 ' . sprintf( __( 'FRAUD ALERT: Order #%1$d Blocked — Score %2$d/100', 'excaliber-fraud-detector' ), $order_id, $score )
         /* translators: 1: order ID, 2: fraud risk score out of 100 */
-        : '⚠️ ' . sprintf( __( 'FRAUD WARNING: Order #%1$d Needs Review — Score %2$d/100', 'hifqa-fraud-detector' ), $order_id, $score );
+        : '⚠️ ' . sprintf( __( 'FRAUD WARNING: Order #%1$d Needs Review — Score %2$d/100', 'excaliber-fraud-detector' ), $order_id, $score );
 
-    $message  = __( 'HIFQA Fraud Detector has flagged an order.', 'hifqa-fraud-detector' ) . "\n\n";
-    $message .= __( 'Order ID:', 'hifqa-fraud-detector' ) . "    #" . $order_id . "\n";
-    $message .= __( 'Decision:', 'hifqa-fraud-detector' ) . "    " . $decision . "\n";
-    $message .= __( 'Risk Score:', 'hifqa-fraud-detector' ) . "  " . $score . "/100\n";
-    $message .= __( 'Scored by:', 'hifqa-fraud-detector' ) . "   " . strtoupper( $provider ) . "\n";
-    $message .= __( 'Reason:', 'hifqa-fraud-detector' ) . "      " . $reason . "\n\n";
-    $message .= __( 'Customer:', 'hifqa-fraud-detector' ) . "    " . $order->get_billing_first_name() . " " . $order->get_billing_last_name() . "\n";
-    $message .= __( 'Email:', 'hifqa-fraud-detector' ) . "       " . $order->get_billing_email() . "\n";
-    $message .= __( 'Total:', 'hifqa-fraud-detector' ) . "       " . $order->get_currency() . " " . $order->get_total() . "\n";
-    $message .= __( 'Billing:', 'hifqa-fraud-detector' ) . "     " . $order->get_billing_country() . "\n";
-    $message .= __( 'Shipping:', 'hifqa-fraud-detector' ) . "    " . $order->get_shipping_country() . "\n\n";
+    $message  = __( 'excaliber Fraud Detector has flagged an order.', 'excaliber-fraud-detector' ) . "\n\n";
+    $message .= __( 'Order ID:', 'excaliber-fraud-detector' ) . "    #" . $order_id . "\n";
+    $message .= __( 'Decision:', 'excaliber-fraud-detector' ) . "    " . $decision . "\n";
+    $message .= __( 'Risk Score:', 'excaliber-fraud-detector' ) . "  " . $score . "/100\n";
+    $message .= __( 'Scored by:', 'excaliber-fraud-detector' ) . "   " . strtoupper( $provider ) . "\n";
+    $message .= __( 'Reason:', 'excaliber-fraud-detector' ) . "      " . $reason . "\n\n";
+    $message .= __( 'Customer:', 'excaliber-fraud-detector' ) . "    " . $order->get_billing_first_name() . " " . $order->get_billing_last_name() . "\n";
+    $message .= __( 'Email:', 'excaliber-fraud-detector' ) . "       " . $order->get_billing_email() . "\n";
+    $message .= __( 'Total:', 'excaliber-fraud-detector' ) . "       " . $order->get_currency() . " " . $order->get_total() . "\n";
+    $message .= __( 'Billing:', 'excaliber-fraud-detector' ) . "     " . $order->get_billing_country() . "\n";
+    $message .= __( 'Shipping:', 'excaliber-fraud-detector' ) . "    " . $order->get_shipping_country() . "\n\n";
     // The order object knows its own edit screen, with or without HPOS.
-    $message .= __( 'View Order:', 'hifqa-fraud-detector' ) . "  " . $order->get_edit_order_url() . "\n\n";
-    $message .= "---\n" . __( 'HIFQA Fraud Detector', 'hifqa-fraud-detector' ) . "\n";
+    $message .= __( 'View Order:', 'excaliber-fraud-detector' ) . "  " . $order->get_edit_order_url() . "\n\n";
+    $message .= "---\n" . __( 'excaliber Fraud Detector', 'excaliber-fraud-detector' ) . "\n";
 
     wp_mail( $admin_email, $subject, $message );
 
@@ -1377,11 +1377,11 @@ function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
     $pinecone = new AIFD_Pinecone();
 
     if ( ! $order ) {
-        return new WP_Error( 'aifd_no_order', __( 'Order not found.', 'hifqa-fraud-detector' ) );
+        return new WP_Error( 'aifd_no_order', __( 'Order not found.', 'excaliber-fraud-detector' ) );
     }
 
     if ( ! $pinecone->is_configured() ) {
-        return new WP_Error( 'aifd_pinecone_not_configured', __( 'Pinecone is not configured.', 'hifqa-fraud-detector' ) );
+        return new WP_Error( 'aifd_pinecone_not_configured', __( 'Pinecone is not configured.', 'excaliber-fraud-detector' ) );
     }
 
     // Get signals that fired on this order
@@ -1389,7 +1389,7 @@ function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
     $provider      = get_option( 'aifd_ai_provider', 'openai' );
 
     if ( empty( $fired_signals ) || ! is_array( $fired_signals ) ) {
-        return new WP_Error( 'aifd_no_signals', __( 'This order has no fired signals to learn from.', 'hifqa-fraud-detector' ) );
+        return new WP_Error( 'aifd_no_signals', __( 'This order has no fired signals to learn from.', 'excaliber-fraud-detector' ) );
     }
 
     // Build pattern text from fired signals
@@ -1412,7 +1412,7 @@ function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
     $embedding  = $embeddings->embed( $pattern_text, $provider );
 
     if ( ! $embedding ) {
-        return new WP_Error( 'aifd_embedding_failed', $embeddings->get_last_error_message() ?: __( 'The embedding request failed.', 'hifqa-fraud-detector' ) );
+        return new WP_Error( 'aifd_embedding_failed', $embeddings->get_last_error_message() ?: __( 'The embedding request failed.', 'excaliber-fraud-detector' ) );
     }
 
     // Get merchant namespace
@@ -1437,7 +1437,7 @@ function aifd_save_confirmed_pattern_to_pinecone( $order_id ) {
 
     if ( ! $success ) {
         $error = $pinecone->get_last_error();
-        return new WP_Error( 'aifd_pinecone_failed', $error ? $error['message'] : __( 'Pinecone rejected the request.', 'hifqa-fraud-detector' ) );
+        return new WP_Error( 'aifd_pinecone_failed', $error ? $error['message'] : __( 'Pinecone rejected the request.', 'excaliber-fraud-detector' ) );
     }
 
     // Update times_seen for similar existing patterns
@@ -1502,7 +1502,7 @@ function aifd_enforce_block_status( $order_id, $old_status, $new_status ) {
         $order->update_status(
             'on-hold',
             /* translators: %d: fraud risk score out of 100 */
-            '🚨 ' . sprintf( __( 'HIFQA Fraud Detector: Order blocked (score: %d/100). Payment gateway override prevented.', 'hifqa-fraud-detector' ), (int) $order->get_meta( '_aifd_risk_score' ) )
+            '🚨 ' . sprintf( __( 'excaliber Fraud Detector: Order blocked (score: %d/100). Payment gateway override prevented.', 'excaliber-fraud-detector' ), (int) $order->get_meta( '_aifd_risk_score' ) )
         );
 
         $order->save();
@@ -1524,7 +1524,7 @@ function aifd_enforce_block_on_payment( $order_id ) {
 
         $order->update_status(
             'on-hold',
-            '🚨 ' . __( 'HIFQA Fraud Detector: Payment received but order blocked due to HIGH fraud risk.', 'hifqa-fraud-detector' )
+            '🚨 ' . __( 'excaliber Fraud Detector: Payment received but order blocked due to HIGH fraud risk.', 'excaliber-fraud-detector' )
         );
 
         $order->save();
@@ -1583,6 +1583,6 @@ function aifd_log_order_with_ai( $order_id, $signals, $rule_result, $ai_result )
     $log_entry .= "SIGNALS:\n";
     $log_entry .= wp_json_encode( $signals, JSON_PRETTY_PRINT );
 
-    wc_get_logger()->info( $log_entry, array( 'source' => 'hifqa-fraud-detector' ) );
+    wc_get_logger()->info( $log_entry, array( 'source' => 'excaliber-fraud-detector' ) );
 
 }

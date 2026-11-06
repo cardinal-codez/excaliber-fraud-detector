@@ -1,6 +1,6 @@
 {
-    "name": "dilrubaummer/hifqa-fraud-detector",
-    "description": "HIFQA Fraud Detector",
+    "name": "dilrubaummer/excaliber-fraud-detector",
+    "description": "excaliber Fraud Detector",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "require-dev": {

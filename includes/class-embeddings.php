@@ -94,21 +94,21 @@ class AIFD_Embeddings {
             case 'anthropic':
                 return get_option( 'aifd_voyage_key', '' )
                     ? ''
-                    : __( 'Anthropic has no embedding model, so vector memory needs a Voyage AI key. Add one in Settings, or leave vector memory off — nothing is sent to another provider in its place.', 'hifqa-fraud-detector' );
+                    : __( 'Anthropic has no embedding model, so vector memory needs a Voyage AI key. Add one in Settings, or leave vector memory off — nothing is sent to another provider in its place.', 'excaliber-fraud-detector' );
             case 'gemini':
                 return get_option( 'aifd_gemini_key', '' )
                     ? ''
-                    : __( 'Vector memory needs your Google Gemini API key to create embeddings.', 'hifqa-fraud-detector' );
+                    : __( 'Vector memory needs your Google Gemini API key to create embeddings.', 'excaliber-fraud-detector' );
             case 'ollama':
                 return get_option( 'aifd_ollama_host', '' )
                     ? ''
-                    : __( 'Vector memory needs your Ollama host URL to create embeddings.', 'hifqa-fraud-detector' );
+                    : __( 'Vector memory needs your Ollama host URL to create embeddings.', 'excaliber-fraud-detector' );
             case 'openai':
                 return get_option( 'aifd_openai_key', '' )
                     ? ''
-                    : __( 'Vector memory needs your OpenAI API key to create embeddings.', 'hifqa-fraud-detector' );
+                    : __( 'Vector memory needs your OpenAI API key to create embeddings.', 'excaliber-fraud-detector' );
             default:
-                return __( 'The selected AI provider is not recognised.', 'hifqa-fraud-detector' );
+                return __( 'The selected AI provider is not recognised.', 'excaliber-fraud-detector' );
         }
 
     }
@@ -169,21 +169,21 @@ class AIFD_Embeddings {
 
         if ( is_wp_error( $response ) ) {
             /* translators: %s: name of the embedding service */
-            return $this->fail( 'request_failed', sprintf( __( 'Could not reach %s for embeddings.', 'hifqa-fraud-detector' ), $service ) );
+            return $this->fail( 'request_failed', sprintf( __( 'Could not reach %s for embeddings.', 'excaliber-fraud-detector' ), $service ) );
         }
 
         $code = (int) wp_remote_retrieve_response_code( $response );
 
         if ( $code < 200 || $code >= 300 ) {
             /* translators: 1: name of the embedding service, 2: HTTP status code */
-            return $this->fail( 'http_error', sprintf( __( '%1$s rejected the embedding request (HTTP %2$d). Check the API key.', 'hifqa-fraud-detector' ), $service, $code ) );
+            return $this->fail( 'http_error', sprintf( __( '%1$s rejected the embedding request (HTTP %2$d). Check the API key.', 'excaliber-fraud-detector' ), $service, $code ) );
         }
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
 
         if ( ! is_array( $data ) ) {
             /* translators: %s: name of the embedding service */
-            return $this->fail( 'bad_response', sprintf( __( '%s returned an unreadable embedding reply.', 'hifqa-fraud-detector' ), $service ) );
+            return $this->fail( 'bad_response', sprintf( __( '%s returned an unreadable embedding reply.', 'excaliber-fraud-detector' ), $service ) );
         }
 
         return $data;
@@ -200,7 +200,7 @@ class AIFD_Embeddings {
         }
 
         /* translators: %s: name of the embedding service */
-        return $this->fail( 'bad_response', sprintf( __( '%s returned no embedding.', 'hifqa-fraud-detector' ), $service ) );
+        return $this->fail( 'bad_response', sprintf( __( '%s returned no embedding.', 'excaliber-fraud-detector' ), $service ) );
 
     }
 

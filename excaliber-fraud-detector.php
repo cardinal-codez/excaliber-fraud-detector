@@ -1,17 +1,17 @@
 <?php
 /**
- * Plugin Name: HIFQA Fraud Detector for WooCommerce
- * Plugin URI: https://github.com/dilrubaummer/hifqa-fraud-detector
- * Description: HIFQA Fraud Detector scores every WooCommerce order for fraud in real time. Local signal scoring works out of the box, with optional AI and vector search layers.
+ * Plugin Name: Excaliber Fraud Detector for WooCommerce
+ * Plugin URI: https://github.com/cardinal-codez/excaliber-fraud-detector
+ * Description: excaliber Fraud Detector scores every WooCommerce order for fraud in real time. Local signal scoring works out of the box, with optional AI and vector search layers.
  * Version: 1.0.0
- * Author: HIFQA
+ * Author: Excaliber
  * Requires at least: 6.6
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce
  * WC tested up to: 11.1
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: hifqa-fraud-detector
+ * Text Domain: excaliber-fraud-detector
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -48,3 +48,4 @@ require_once AIFD_PATH . 'includes/class-embeddings.php';
 require_once AIFD_PATH . 'includes/class-pinecone.php';
 require_once AIFD_PATH . 'includes/class-seed-loader.php';
 require_once AIFD_PATH . 'includes/class-function-calling.php';
+require_once AIFD_PATH . 'includes/order-page-fraud-column.php';

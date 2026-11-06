@@ -1,4 +1,4 @@
-# Excaliber Fraud Detector
+# excaliber Fraud Detector
 
 > Production-grade AI-powered fraud detection plugin 
 > for WooCommerce using OpenAI function calling, 
@@ -8,7 +8,7 @@
 
 ## What It Does
 
-Excaliber Fraud Detector scores every WooCommerce order
+excaliber Fraud Detector scores every WooCommerce order
 in real time against 17 weighted fraud signals, in
 plain PHP on your own server. Optionally, an AI agent
 can then search a vector database of known fraud
@@ -198,7 +198,7 @@ No API key, no account, and no configuration are required to get
 working fraud detection. The AI and vector layers are opt-in:
 
 **To enable Vector Memory (optional)**
-Go to **HIFQA → Settings**, enter a Pinecone API key + host
+Go to **excaliber → Settings**, enter a Pinecone API key + host
 URL, then click **Load 65 Seed Patterns**.
 
 **To enable AI Reasoning (optional)**
@@ -241,7 +241,7 @@ needs an **empty** MySQL database — every table in it is dropped on each run.
 
 ```bash
 composer install
-mysql -uroot -proot -e "CREATE DATABASE hifqa_tests"
+mysql -uroot -proot -e "CREATE DATABASE Excaliber_tests"
 composer test
 ```
 
@@ -283,8 +283,8 @@ the `export-ignore` rules in `.gitattributes`:
 
 ```bash
 npm ci && npm run build      # rebuild build/ from src/ and commit the result
-git archive --format zip --prefix=hifqa-fraud-detector/ \
-    --output hifqa-fraud-detector.zip HEAD
+git archive --format zip --prefix=excaliber-fraud-detector/ \
+    --output excaliber-fraud-detector.zip HEAD
 ```
 
 Pushing a tag runs the same `git archive` in `.github/workflows/release.yml`,

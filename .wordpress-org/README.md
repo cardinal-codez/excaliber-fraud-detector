@@ -6,7 +6,7 @@ after the plugin is approved. They are never shipped inside the plugin zip —
 
 **None of these files exist yet.** `readme.txt` describes three screenshots, so
 capture them from a running install of the current build before uploading
-assets — the screens must show the **HIFQA Fraud Detector** name.
+assets — the screens must show the **excaliber Fraud Detector** name.
 
 Required files (numbering must match the `== Screenshots ==` section in readme.txt):
 

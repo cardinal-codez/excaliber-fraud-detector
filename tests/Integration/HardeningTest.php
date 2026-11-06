@@ -1,7 +1,7 @@
 <?php
-namespace Hifqa\Tests\Integration;
+namespace excaliber\Tests\Integration;
 
-use Hifqa\Tests\TestCase;
+use excaliber\Tests\TestCase;
 
 /**
  * End-to-end checks for the review fixes: AI verdicts can't override local
@@ -189,7 +189,7 @@ class HardeningTest extends TestCase {
 
 		$this->assertSame( '', wc_get_order( $draft->get_id() )->get_meta( '_aifd_decision' ), 'An empty draft must not be scored' );
 		$this->assertSame( 0, (int) get_option( 'aifd_total_allowed' ) );
-		$this->assertSame( array(), $this->hifqa_mail_subjects() );
+		$this->assertSame( array(), $this->Excaliber_mail_subjects() );
 
 		foreach ( $this->risky_order_props( array( 'billing_first_name' => 'Jane', 'billing_last_name' => 'Doe' ) ) as $key => $value ) {
 			$draft->{ 'set_' . $key }( $value );
@@ -211,7 +211,7 @@ class HardeningTest extends TestCase {
 		do_action( 'woocommerce_store_api_checkout_order_processed', $order );
 
 		$this->assertSame( 1, (int) get_option( 'aifd_total_review' ) );
-		$this->assertCount( 1, $this->hifqa_mail_subjects() );
+		$this->assertCount( 1, $this->Excaliber_mail_subjects() );
 	}
 
 	public function test_a_rescore_never_reopens_a_block_or_a_merchant_verdict() {
@@ -263,7 +263,7 @@ class HardeningTest extends TestCase {
 		$this->assertStringContainsString( 'could not be completed', $scored->get_meta( '_aifd_reason' ) );
 		$this->assertSame( 0, (int) get_option( 'aifd_total_allowed' ) );
 		$this->assertStringNotContainsString( 'FRAUD CHECK PASSED', $this->notes( $scored ) );
-		$this->assertCount( 1, $this->hifqa_mail_subjects(), 'The merchant is told to review it' );
+		$this->assertCount( 1, $this->Excaliber_mail_subjects(), 'The merchant is told to review it' );
 	}
 
 	public function test_an_error_while_scoring_never_escapes_into_checkout() {
@@ -291,11 +291,11 @@ class HardeningTest extends TestCase {
 		$mail = tests_retrieve_phpmailer_instance()->get_sent();
 
 		$this->assertStringContainsString( $order->get_edit_order_url(), $mail->body );
-		$this->assertStringContainsString( 'HIFQA Fraud Detector', $mail->body );
+		$this->assertStringContainsString( 'excaliber Fraud Detector', $mail->body );
 	}
 
 	public function test_hpos_and_block_checkout_compatibility_is_declared() {
-		$features = \Automattic\WooCommerce\Utilities\FeaturesUtil::get_compatible_features_for_plugin( plugin_basename( AIFD_PATH . 'hifqa-fraud-detector.php' ) );
+		$features = \Automattic\WooCommerce\Utilities\FeaturesUtil::get_compatible_features_for_plugin( plugin_basename( AIFD_PATH . 'excaliber-fraud-detector.php' ) );
 
 		$this->assertContains( 'custom_order_tables', $features['compatible'] );
 		$this->assertContains( 'cart_checkout_blocks', $features['compatible'] );
@@ -425,7 +425,7 @@ class HardeningTest extends TestCase {
 		update_option( 'unrelated_plugin_option', 'keep me' );
 
 		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
-			define( 'WP_UNINSTALL_PLUGIN', 'hifqa-fraud-detector/hifqa-fraud-detector.php' );
+			define( 'WP_UNINSTALL_PLUGIN', 'excaliber-fraud-detector/excaliber-fraud-detector.php' );
 		}
 		include AIFD_PATH . 'uninstall.php';
 

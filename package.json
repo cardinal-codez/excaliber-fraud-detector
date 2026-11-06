@@ -1,23 +1,23 @@
 {
-  "name": "hifqa-fraud-detector",
+  "name": "excaliber-fraud-detector",
   "version": "1.0.0",
   "private": true,
-  "description": "HIFQA Fraud Detector — admin dashboard build",
+  "description": "excaliber Fraud Detector — admin dashboard build",
   "scripts": {
     "start": "wp-scripts start",
     "build": "wp-scripts build"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dilrubaummer/hifqa-fraud-detector.git"
+    "url": "git+https://github.com/dilrubaummer/excaliber-fraud-detector.git"
   },
   "keywords": [],
   "author": "",
   "license": "GPL-2.0-or-later",
   "bugs": {
-    "url": "https://github.com/dilrubaummer/hifqa-fraud-detector/issues"
+    "url": "https://github.com/dilrubaummer/excaliber-fraud-detector/issues"
   },
-  "homepage": "https://github.com/dilrubaummer/hifqa-fraud-detector#readme",
+  "homepage": "https://github.com/dilrubaummer/excaliber-fraud-detector#readme",
   "devDependencies": {
     "@wordpress/scripts": "^32.2.0"
   }

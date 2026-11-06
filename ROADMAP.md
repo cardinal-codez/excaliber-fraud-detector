@@ -1,4 +1,4 @@
-# HIFQA Fraud Detector Roadmap
+# excaliber Fraud Detector Roadmap
 
 This document outlines the current status of the project and planned enhancements.
 

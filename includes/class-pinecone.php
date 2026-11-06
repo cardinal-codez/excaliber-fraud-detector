@@ -44,7 +44,7 @@ class AIFD_Pinecone {
         if ( is_wp_error( $response ) ) {
             $this->last_error = array(
                 'code'    => 'request_failed',
-                'message' => __( 'Could not reach Pinecone. Check the index host URL.', 'hifqa-fraud-detector' ),
+                'message' => __( 'Could not reach Pinecone. Check the index host URL.', 'excaliber-fraud-detector' ),
             );
             return false;
         }
@@ -56,7 +56,7 @@ class AIFD_Pinecone {
             $this->last_error = array(
                 'code'    => 'http_error',
                 /* translators: %d: HTTP status code */
-                'message' => sprintf( __( 'Pinecone rejected the request (HTTP %d). Check the API key and index host.', 'hifqa-fraud-detector' ), $code ),
+                'message' => sprintf( __( 'Pinecone rejected the request (HTTP %d). Check the API key and index host.', 'excaliber-fraud-detector' ), $code ),
             );
             return false;
         }
@@ -234,13 +234,13 @@ class AIFD_Pinecone {
         $embeddings = new AIFD_Embeddings();
 
         if ( ! $pinecone->is_configured() ) {
-            return array( 'success' => false, 'message' => __( 'Pinecone not configured', 'hifqa-fraud-detector' ) );
+            return array( 'success' => false, 'message' => __( 'Pinecone not configured', 'excaliber-fraud-detector' ) );
         }
 
         $allowed = aifd_get_allowed_providers();
 
         if ( ! in_array( $from_provider, $allowed, true ) || ! in_array( $to_provider, $allowed, true ) ) {
-            return array( 'success' => false, 'message' => __( 'Unknown AI provider', 'hifqa-fraud-detector' ) );
+            return array( 'success' => false, 'message' => __( 'Unknown AI provider', 'excaliber-fraud-detector' ) );
         }
 
         $problem = $embeddings->get_setup_problem( $to_provider );
@@ -300,14 +300,14 @@ class AIFD_Pinecone {
             $error = $pinecone->get_last_error();
             return array(
                 'success' => false,
-                'message' => $embeddings->get_last_error_message() ?: ( $error ? $error['message'] : __( 'Migration failed.', 'hifqa-fraud-detector' ) ),
+                'message' => $embeddings->get_last_error_message() ?: ( $error ? $error['message'] : __( 'Migration failed.', 'excaliber-fraud-detector' ) ),
             );
         }
 
         return array(
             'success'  => true,
             /* translators: 1: number of migrated patterns, 2: new provider name */
-            'message'  => sprintf( __( 'Migration complete. Seeds loaded + %1$d confirmed patterns migrated to %2$s namespace.', 'hifqa-fraud-detector' ), $migrated, $to_provider ),
+            'message'  => sprintf( __( 'Migration complete. Seeds loaded + %1$d confirmed patterns migrated to %2$s namespace.', 'excaliber-fraud-detector' ), $migrated, $to_provider ),
             'migrated' => $migrated,
             'failed'   => $failed,
         );

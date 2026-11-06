@@ -2,7 +2,7 @@
 /**
  * Runs when the plugin is deleted from the Plugins screen.
  *
- * Removes what HIFQA Fraud Detector itself stored: its settings, the saved API
+ * Removes what excaliber Fraud Detector itself stored: its settings, the saved API
  * keys, its counters and learned weights, and its transients.
  *
  * Deliberately left in place:
