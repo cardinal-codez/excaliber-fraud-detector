@@ -1,4 +1,4 @@
-# excaliber Fraud Detector
+# Excaliber Fraud Detector
 
 > Production-grade AI-powered fraud detection plugin 
 > for WooCommerce using OpenAI function calling, 
@@ -8,7 +8,7 @@
 
 ## What It Does
 
-excaliber Fraud Detector scores every WooCommerce order
+Excaliber Fraud Detector scores every WooCommerce order
 in real time against 17 weighted fraud signals, in
 plain PHP on your own server. Optionally, an AI agent
 can then search a vector database of known fraud
@@ -198,7 +198,7 @@ No API key, no account, and no configuration are required to get
 working fraud detection. The AI and vector layers are opt-in:
 
 **To enable Vector Memory (optional)**
-Go to **excaliber → Settings**, enter a Pinecone API key + host
+Go to **Excaliber → Settings**, enter a Pinecone API key + host
 URL, then click **Load 65 Seed Patterns**.
 
 **To enable AI Reasoning (optional)**
